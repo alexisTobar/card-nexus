@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../lib/firebase';
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { Search, Plus, Trash2, Layout, Share2, Loader2, Sparkles, X, Globe, Copy, Check, ExternalLink, MapPin, Info, AlertCircle, Bell, Camera } from 'lucide-react';
+import { Search, Plus, Trash2, Layout, Share2, Loader2, Sparkles, X, Globe, Copy, Check, ExternalLink, MapPin, Info, AlertCircle, Bell, Camera, Languages } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import Scanner from '../components/Scanner'; // IMPORTACIÓN DEL ARCHIVO APARTE
+import Scanner from '../components/Scanner';
 
 export default function Dashboard() {
   const [myCards, setMyCards] = useState([]);
@@ -14,16 +14,18 @@ export default function Dashboard() {
   const [isSearching, setIsSearching] = useState(false);
   const [copied, setCopied] = useState(false);
   const [profileUrl, setProfileUrl] = useState("");
-  const [showScanner, setShowScanner] = useState(false); // ESTADO PARA MOSTRAR ESCANER
+  const [showScanner, setShowScanner] = useState(false);
   const navigate = useNavigate();
 
-  // ESTADOS PARA ALERTAS Y MODALES
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, id: null });
   const [selectedCard, setSelectedCard] = useState(null);
+  
+  // ESTADO EXTENDIDO CON IDIOMA
   const [cardDetails, setCardDetails] = useState({
     price: "",
     status: "Near Mint",
+    language: "Inglés", // Valor por defecto
     delivery: "",
     description: ""
   });
@@ -55,18 +57,20 @@ export default function Dashboard() {
     setLoading(false);
   };
 
-  const searchOfficial = async (e) => {
-    if (e) e.preventDefault();
-    if (!searchQuery.trim()) return;
+  const searchOfficial = async (manualQuery = null) => {
+    const queryToSearch = manualQuery || searchQuery;
+    if (!queryToSearch.trim()) return;
+    
     setIsSearching(true);
     try {
       const [resEs, resEn] = await Promise.all([
-        fetch(`https://api.tcgdex.net/v2/es/cards?name=${encodeURIComponent(searchQuery)}`),
-        fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(searchQuery)}`)
+        fetch(`https://api.tcgdex.net/v2/es/cards?name=${encodeURIComponent(queryToSearch)}`),
+        fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(queryToSearch)}`)
       ]);
       const dataEs = await resEs.json();
       const dataEn = await resEn.json();
-      const combined = [...dataEs, ...dataEn];
+      const combined = [...(Array.isArray(dataEs) ? dataEs : []), ...(Array.isArray(dataEn) ? dataEn : [])];
+      
       const uniqueCards = [];
       const map = new Map();
       for (const item of combined) {
@@ -81,14 +85,10 @@ export default function Dashboard() {
     setIsSearching(false);
   };
 
-  // FUNCIÓN PARA PROCESAR RESULTADO DEL ESCANER
   const handleScannedName = (name) => {
     setSearchQuery(name);
     setShowScanner(false);
-    // Ejecutar búsqueda automática tras detectar nombre
-    setTimeout(() => {
-        searchOfficial();
-    }, 500);
+    searchOfficial(name); // Búsqueda inmediata con el nombre detectado
   };
 
   const clearSearch = () => {
@@ -108,17 +108,18 @@ export default function Dashboard() {
         userName: auth.currentUser.displayName,
         name: selectedCard.name,
         image: `${selectedCard.image}/high.webp`,
-        price: cardDetails.price,
+        price: Number(cardDetails.price),
         status: cardDetails.status,
+        language: cardDetails.language, // Guardamos el idioma
         delivery: cardDetails.delivery,
         description: cardDetails.description,
-        currency: "CLP",
+        currency: "CLP", // Forzamos CLP
         cardId: selectedCard.id,
         createdAt: serverTimestamp()
       });
       
       setSelectedCard(null);
-      setCardDetails({ price: "", status: "Near Mint", delivery: "", description: "" });
+      setCardDetails({ price: "", status: "Near Mint", language: "Inglés", delivery: "", description: "" });
       loadMyCollection(auth.currentUser.uid);
       showToast("¡Carta añadida con éxito!");
     } catch (err) { showToast("Error al guardar", "error"); }
@@ -155,12 +156,10 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-[#020617] text-white font-sans overflow-x-hidden selection:bg-yellow-400 selection:text-black">
       
-      {/* COMPONENTE ESCANER (SOLO SE MUESTRA SI showScanner ES TRUE) */}
       {showScanner && (
         <Scanner onCardFound={handleScannedName} onClose={() => setShowScanner(false)} />
       )}
 
-      {/* TOAST CUSTOMIZADO TCG */}
       {toast.show && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] w-[92%] max-w-sm animate-in zoom-in duration-300">
           <div className={`${toast.type === 'success' ? 'bg-yellow-500 text-black' : 'bg-red-600 text-white'} px-6 py-4 rounded-2xl shadow-[0_0_30px_rgba(234,179,8,0.3)] flex items-center gap-3 border-2 border-white/20 backdrop-blur-md`}>
@@ -170,7 +169,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* HEADER ESTILO CYBER-POKEMON */}
       <header className="p-4 md:p-6 border-b-2 border-white/5 bg-slate-950/80 backdrop-blur-2xl sticky top-0 z-50 flex justify-between items-center shadow-2xl">
         <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate('/')}>
           <div className="bg-gradient-to-tr from-yellow-500 to-yellow-200 p-2 rounded-lg rotate-3 group-hover:rotate-12 transition-transform">
@@ -190,7 +188,6 @@ export default function Dashboard() {
 
       <main className="max-w-[1400px] mx-auto p-4 md:p-8">
         
-        {/* CARD DE PERFIL / QR */}
         <section className="relative overflow-hidden bg-slate-900 border-2 border-white/10 rounded-[2.5rem] p-6 mb-10 flex flex-col md:flex-row items-center gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
           <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 blur-[60px] rounded-full" />
           <div className="bg-white p-2 rounded-2xl shadow-xl rotate-[-2deg]">
@@ -210,7 +207,6 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* BUSCADOR PRO + BOTÓN ESCANER */}
         <section className="mb-14">
           <div className="flex items-center gap-4 mb-6">
             <div className="h-[2px] flex-1 bg-gradient-to-r from-transparent to-white/10" />
@@ -232,10 +228,7 @@ export default function Dashboard() {
                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-yellow-500" size={22} />
                 
                 {(searchQuery || results.length > 0) && (
-                  <button 
-                    onClick={clearSearch}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-red-500/20 hover:bg-red-500 text-red-500 hover:text-white p-2.5 rounded-xl transition-all"
-                  >
+                  <button onClick={clearSearch} className="absolute right-4 top-1/2 -translate-y-1/2 bg-red-500/20 hover:bg-red-500 text-red-500 hover:text-white p-2.5 rounded-xl transition-all">
                     <X size={20} strokeWidth={3} />
                   </button>
                 )}
@@ -244,31 +237,18 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* BOTÓN CÁMARA PARA ACTIVAR ESCANER */}
-            <button 
-                onClick={() => setShowScanner(true)}
-                className="bg-yellow-500 text-black p-5 rounded-[1.8rem] hover:bg-yellow-400 active:scale-90 transition-all shadow-[0_0_20px_rgba(234,179,8,0.3)] border-2 border-white/20"
-            >
+            <button onClick={() => setShowScanner(true)} className="bg-yellow-500 text-black p-5 rounded-[1.8rem] hover:bg-yellow-400 active:scale-90 transition-all shadow-[0_0_20px_rgba(234,179,8,0.3)] border-2 border-white/20">
                 <Camera size={24} />
             </button>
           </div>
 
-          {/* RESULTADOS - GRID DE 2 EN MÓVIL */}
           {results.length > 0 && (
             <div className="mt-8 animate-in slide-in-from-top-10 duration-500">
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {results.map(card => (
-                  <div 
-                    key={card.id} 
-                    onClick={() => setSelectedCard(card)} 
-                    className="relative group cursor-pointer active:scale-95 transition-all"
-                  >
+                  <div key={card.id} onClick={() => setSelectedCard(card)} className="relative group cursor-pointer active:scale-95 transition-all">
                     <div className="absolute -inset-1 bg-yellow-500 rounded-2xl opacity-0 group-hover:opacity-30 blur transition" />
-                    <img 
-                      src={`${card.image}/high.webp`} 
-                      className="relative w-full rounded-xl shadow-2xl border-2 border-white/5 group-hover:border-yellow-500/50 transition-all" 
-                      alt={card.name} 
-                    />
+                    <img src={`${card.image}/high.webp`} className="relative w-full rounded-xl shadow-2xl border-2 border-white/5 group-hover:border-yellow-500/50 transition-all" alt={card.name} />
                     <div className="absolute bottom-2 right-2 bg-yellow-500 text-black p-2 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all">
                       <Plus size={16} strokeWidth={4}/>
                     </div>
@@ -279,7 +259,6 @@ export default function Dashboard() {
           )}
         </section>
 
-        {/* INVENTARIO PERSONALIZADO */}
         <section className="pt-10 border-t-2 border-white/5">
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-2xl font-black uppercase italic tracking-tighter flex items-center gap-3">
@@ -290,17 +269,13 @@ export default function Dashboard() {
             </span>
           </div>
           
-          {/* GRID DE 2 CARTAS EN MOVIL */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
             {myCards.map(card => (
               <div key={card.id} className="bg-slate-900/40 rounded-[2rem] border-2 border-white/5 overflow-hidden flex flex-col group hover:border-yellow-500/30 transition-all shadow-lg">
                 <div className="relative aspect-[3/4] overflow-hidden">
                   <img src={card.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={card.name} />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-60" />
-                  <button 
-                    onClick={() => confirmDelete(card.id)}
-                    className="absolute top-3 right-3 bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white p-3 rounded-2xl backdrop-blur-md active:scale-75 transition-all border border-red-500/20 shadow-xl"
-                  >
+                  <button onClick={() => confirmDelete(card.id)} className="absolute top-3 right-3 bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white p-3 rounded-2xl backdrop-blur-md active:scale-75 transition-all border border-red-500/20 shadow-xl">
                     <Trash2 size={16} strokeWidth={2.5} />
                   </button>
                 </div>
@@ -312,6 +287,9 @@ export default function Dashboard() {
                   <div className="flex flex-wrap gap-1">
                     <span className="text-[8px] font-black text-black uppercase tracking-widest bg-yellow-500 px-2 py-1 rounded">
                       {card.status}
+                    </span>
+                    <span className="text-[8px] font-black text-yellow-500 uppercase tracking-widest bg-white/10 px-2 py-1 rounded border border-yellow-500/20">
+                      {card.language || "Inglés"}
                     </span>
                   </div>
                   {card.delivery && (
@@ -335,40 +313,39 @@ export default function Dashboard() {
         </section>
       </main>
 
-      {/* MODAL: ESTILO POKEDEX / GAMER */}
       {selectedCard && (
         <div className="fixed inset-0 z-[150] flex items-end md:items-center justify-center p-0 md:p-4 bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
-          <div className="bg-slate-900 border-t-4 border-yellow-500 md:border-2 md:border-yellow-500 w-full max-w-lg rounded-t-[3rem] md:rounded-[3rem] p-8 md:p-10 space-y-8 animate-in slide-in-from-bottom-full duration-500 shadow-[0_-20px_60px_rgba(234,179,8,0.2)] relative">
+          <div className="bg-slate-900 border-t-4 border-yellow-500 md:border-2 md:border-yellow-500 w-full max-w-lg rounded-t-[3rem] md:rounded-[3rem] p-8 md:p-10 space-y-6 animate-in slide-in-from-bottom-full duration-500 shadow-[0_-20px_60px_rgba(234,179,8,0.2)] relative max-h-[90vh] overflow-y-auto">
             
             <button onClick={() => setSelectedCard(null)} className="absolute top-6 right-6 bg-white/5 p-3 rounded-full hover:bg-red-500 transition-all"><X size={24}/></button>
 
             <div className="flex items-center gap-6">
               <div className="relative">
                 <div className="absolute -inset-2 bg-yellow-500/20 blur-xl rounded-full" />
-                <img src={`${selectedCard.image}/high.webp`} className="relative w-28 rounded-2xl shadow-2xl border-2 border-white/10 rotate-[-3deg]" alt="" />
+                <img src={`${selectedCard.image}/high.webp`} className="relative w-24 rounded-2xl shadow-2xl border-2 border-white/10 rotate-[-3deg]" alt="" />
               </div>
               <div className="flex-1">
-                <h3 className="text-3xl font-black uppercase italic tracking-tighter leading-none mb-2">{selectedCard.name}</h3>
+                <h3 className="text-2xl font-black uppercase italic tracking-tighter leading-none mb-2">{selectedCard.name}</h3>
                 <div className="inline-block bg-yellow-500/10 text-yellow-500 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest border border-yellow-500/20">
                   Setup de Venta
                 </div>
               </div>
             </div>
 
-            <div className="space-y-5">
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-500 ml-1 tracking-widest">Precio Final (CLP)</label>
+                  <label className="text-[10px] font-black uppercase text-slate-500 ml-1 tracking-widest">Precio (CLP)</label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-yellow-500">$</span>
                     <input type="number" placeholder="0" className="w-full bg-black/40 border-2 border-white/10 rounded-2xl py-4 pl-8 pr-4 outline-none focus:border-yellow-500 font-black text-lg transition-all"
-                      onChange={(e) => setCardDetails({...cardDetails, price: e.target.value})} />
+                      value={cardDetails.price} onChange={(e) => setCardDetails({...cardDetails, price: e.target.value})} />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase text-slate-500 ml-1 tracking-widest">Estado</label>
                   <select className="w-full bg-black/40 border-2 border-white/10 rounded-2xl p-4 outline-none font-black text-sm appearance-none cursor-pointer focus:border-yellow-500 text-yellow-400" 
-                    onChange={(e) => setCardDetails({...cardDetails, status: e.target.value})}>
+                    value={cardDetails.status} onChange={(e) => setCardDetails({...cardDetails, status: e.target.value})}>
                     <option>Near Mint</option>
                     <option>Mint (10)</option>
                     <option>Lightly Played</option>
@@ -378,12 +355,34 @@ export default function Dashboard() {
                 </div>
               </div>
 
+              {/* SELECT DE IDIOMA AÑADIDO */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-500 ml-1 tracking-widest flex items-center gap-2">
+                  <Languages size={12}/> Idioma de la Carta
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {['Inglés', 'Español', 'Portugués', 'Japonés'].map((lang) => (
+                    <button
+                      key={lang}
+                      onClick={() => setCardDetails({...cardDetails, language: lang})}
+                      className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all ${
+                        cardDetails.language === lang 
+                        ? 'bg-yellow-500 border-yellow-500 text-black' 
+                        : 'bg-black/20 border-white/5 text-slate-500 hover:border-white/20'
+                      }`}
+                    >
+                      {lang}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="space-y-2 text-left">
-                <label className="text-[10px] font-black uppercase text-slate-500 ml-1 tracking-widest">Punto de Entrega / Envío</label>
+                <label className="text-[10px] font-black uppercase text-slate-500 ml-1 tracking-widest">Entrega / Ubicación</label>
                 <div className="relative">
                   <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-yellow-500" size={18} />
-                  <input type="text" placeholder="Ej: Metro Baquedano o Envíos" className="w-full bg-black/40 border-2 border-white/10 rounded-2xl py-5 pl-12 pr-4 outline-none font-bold text-sm focus:border-yellow-500"
-                    onChange={(e) => setCardDetails({...cardDetails, delivery: e.target.value})} />
+                  <input type="text" placeholder="Ej: Metro Baquedano" className="w-full bg-black/40 border-2 border-white/10 rounded-2xl py-5 pl-12 pr-4 outline-none font-bold text-sm focus:border-yellow-500"
+                    value={cardDetails.delivery} onChange={(e) => setCardDetails({...cardDetails, delivery: e.target.value})} />
                 </div>
               </div>
 
@@ -395,7 +394,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* MODAL: ELIMINAR PRO */}
       {deleteConfirm.show && (
         <div className="fixed inset-0 z-[160] flex items-center justify-center p-6 bg-black/90 backdrop-blur-sm">
           <div className="bg-slate-900 border-2 border-red-500/50 w-full max-w-xs rounded-[2.5rem] p-8 text-center space-y-6 shadow-[0_0_50px_rgba(239,68,68,0.2)] animate-in zoom-in duration-200">
@@ -403,8 +401,8 @@ export default function Dashboard() {
               <Trash2 size={32} strokeWidth={3} />
             </div>
             <div>
-              <h4 className="font-black uppercase italic tracking-tighter text-2xl mb-2">¿Descartar Carta?</h4>
-              <p className="text-slate-400 text-[10px] font-bold uppercase leading-relaxed tracking-widest px-4">Esta carta será removida permanentemente de tu vitrina.</p>
+              <h4 className="font-black uppercase italic tracking-tighter text-2xl mb-2">¿Descartar?</h4>
+              <p className="text-slate-400 text-[10px] font-bold uppercase leading-relaxed tracking-widest px-4">Esta carta será removida de tu vitrina.</p>
             </div>
             <div className="flex gap-3 pt-2">
               <button onClick={() => setDeleteConfirm({show: false, id: null})} className="flex-1 bg-white/5 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest border border-white/10">Cancelar</button>
@@ -417,7 +415,7 @@ export default function Dashboard() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;700;900&display=swap');
         
-        body { font-family: 'Inter', sans-serif; }
+        body { font-family: 'Inter', sans-serif; background-color: #020617; }
         h1, h2, h3, h4, button { font-family: 'Archivo Black', sans-serif; }
 
         input[type="number"]::-webkit-inner-spin-button, 
