@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+@theme {
+  --color-pokemon-red: #ff1f22;
+  --color-pokemon-blue: #3b4cca;
+  --color-pokemon-gold: #ffde00;
+  
+  /* Animación para el efecto Holo */
+  @keyframes shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+  }
+}
+
+body {
+  @apply bg-slate-950 text-white antialiased;
+  font-family: 'Inter', sans-serif;
+}
