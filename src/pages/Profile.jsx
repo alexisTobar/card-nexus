@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useParams } from 'react-router-dom';
-import { Loader2, Instagram, MessageCircle, Sparkles, Trophy, ShoppingCart } from 'lucide-react';
+import { Loader2, Instagram, MessageCircle, Sparkles, Trophy, ShoppingCart, MapPin, Languages } from 'lucide-react';
 
 export default function Profile() {
   const { uid } = useParams();
@@ -19,13 +19,13 @@ export default function Profile() {
         const fetchedCards = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
         // Ordenar por precio para sacar las destacadas (top 3)
-        const sorted = [...fetchedCards].sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+        const sorted = [...fetchedCards].sort((a, b) => Number(b.price) - Number(a.price));
         
         setCards(fetchedCards);
         setFeaturedCards(sorted.slice(0, 3));
         
         if (fetchedCards.length > 0) {
-          setUserName(fetchedCards[0].userName);
+          setUserName(fetchedCards[0].userName || "Coleccionista");
         }
       } catch (err) {
         console.error("Error al cargar perfil:", err);
@@ -37,15 +37,15 @@ export default function Profile() {
   }, [uid]);
 
   const handleWhatsApp = (cardName, cardPrice) => {
-    const telefono = "34600000000"; // PON AQUÍ TU NÚMERO (sin el +)
-    const mensaje = `¡Hola ${userName}! He visto tu perfil en HeroesNexus y me interesa la carta: ${cardName} (€${cardPrice}). ¿Aún la tienes?`;
+    const telefono = "56900000000"; // CAMBIA ESTO POR TU NÚMERO DE CHILE (569...)
+    const mensaje = `¡Hola ${userName}! He visto tu perfil en NexusHub y me interesa la carta: ${cardName} ($${Number(cardPrice).toLocaleString('es-CL')} CLP). ¿Aún la tienes?`;
     window.open(`https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`, '_blank');
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center text-white">
-        <Loader2 className="animate-spin text-blue-500 mb-4" size={40} />
+        <Loader2 className="animate-spin text-yellow-400 mb-4" size={40} />
         <p className="text-[10px] font-black uppercase tracking-[0.5em]">Sincronizando Álbum...</p>
       </div>
     );
@@ -56,21 +56,21 @@ export default function Profile() {
       
       {/* HEADER DE PERFIL */}
       <header className="relative h-[450px] w-full overflow-hidden flex items-center justify-center">
-        <div className="absolute inset-0 bg-gradient-to-b from-blue-600/20 via-[#020617]/80 to-[#020617] z-0" />
+        <div className="absolute inset-0 bg-gradient-to-b from-yellow-500/10 via-[#020617]/80 to-[#020617] z-0" />
         <div className="relative z-10 text-center space-y-6 px-4">
-          <div className="inline-block bg-blue-600 p-5 rounded-[2.5rem] shadow-2xl shadow-blue-500/40 animate-bounce">
-            <Sparkles size={40} />
+          <div className="inline-block bg-yellow-500 p-5 rounded-[2.5rem] shadow-2xl shadow-yellow-500/40 animate-bounce">
+            <Sparkles size={40} className="text-black" />
           </div>
           <div className="space-y-2">
             <h1 className="text-6xl md:text-8xl font-black uppercase italic tracking-tighter leading-none">
-              {userName} <span className="text-blue-500 block md:inline text-glow">Vault</span>
+              {userName} <span className="text-yellow-400 block md:inline text-glow">Vault</span>
             </h1>
             <p className="text-slate-500 font-bold uppercase text-xs tracking-[0.6em]">
-              Coleccionista Verificado • {cards.length} Activos
+              Coleccionista Verificado • {cards.length} Cartas en Venta
             </p>
           </div>
           <div className="flex justify-center gap-4">
-             <button className="bg-white/5 border border-white/10 p-4 rounded-2xl hover:bg-blue-600 transition-all group">
+             <button className="bg-white/5 border border-white/10 p-4 rounded-2xl hover:bg-pink-600 transition-all group">
                 <Instagram size={20} className="group-hover:scale-110 transition-transform" />
              </button>
              <button className="bg-white/5 border border-white/10 p-4 rounded-2xl hover:bg-green-600 transition-all group">
@@ -93,9 +93,14 @@ export default function Profile() {
                 <div className="absolute -inset-1 bg-gradient-to-r from-yellow-500 to-blue-500 rounded-[2rem] blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
                 <div className="relative bg-slate-900 rounded-[2rem] p-6 border border-white/10 overflow-hidden">
                    <img src={card.image} className="w-full rounded-xl mb-4 shadow-2xl" alt={card.name} />
-                   <div className="flex justify-between items-center">
-                      <p className="font-black text-xs uppercase truncate">{card.name}</p>
-                      <span className="text-yellow-500 font-black italic">€{card.price}</span>
+                   <div className="space-y-2">
+                      <p className="font-black text-xs uppercase truncate text-slate-400">{card.name}</p>
+                      <div className="flex justify-between items-end">
+                        <span className="text-yellow-400 font-black italic text-3xl">
+                          ${Number(card.price).toLocaleString('es-CL')}
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-500">CLP</span>
+                      </div>
                    </div>
                 </div>
               </div>
@@ -107,30 +112,45 @@ export default function Profile() {
       {/* GALERÍA COMPLETA */}
       <main className="max-w-7xl mx-auto px-8 relative z-20">
         <div className="flex items-center gap-4 mb-12">
-          <div className="h-[2px] w-12 bg-blue-500"></div>
-          <h2 className="text-sm font-black uppercase tracking-[0.4em]">Inventario Completo</h2>
+          <div className="h-[2px] w-12 bg-yellow-500"></div>
+          <h2 className="text-sm font-black uppercase tracking-[0.4em]">Inventario Disponible</h2>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8">
           {cards.map((card) => (
             <div key={card.id} className="group relative">
-              <div className="holo-card relative rounded-2xl overflow-hidden border border-white/5 bg-slate-950 transition-all duration-500 group-hover:shadow-[0_0_40px_rgba(59,130,246,0.3)] group-hover:-translate-y-3">
+              <div className="holo-card relative rounded-2xl overflow-hidden border border-white/5 bg-slate-950 transition-all duration-500 group-hover:shadow-[0_0_40px_rgba(234,179,8,0.2)] group-hover:-translate-y-3">
                 
                 <img src={card.image} alt={card.name} className="w-full h-auto z-10 relative" />
+
+                {/* Etiquetas Rápidas (Idioma / Estado) */}
+                <div className="absolute top-2 left-2 z-40 flex flex-col gap-1">
+                  <span className="bg-yellow-500 text-black text-[7px] font-black px-2 py-0.5 rounded uppercase tracking-tighter shadow-xl">
+                    {card.status}
+                  </span>
+                  {card.language && (
+                    <span className="bg-black/80 text-white border border-white/20 text-[7px] font-black px-2 py-0.5 rounded uppercase tracking-tighter backdrop-blur-md">
+                      {card.language}
+                    </span>
+                  )}
+                </div>
 
                 {/* Capa Holográfica */}
                 <div className="holo-effect absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 z-20" />
 
                 {/* Panel de Información al Hover */}
-                <div className="absolute inset-0 z-30 flex flex-col justify-end bg-gradient-to-t from-black via-black/20 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                   <p className="text-[9px] font-black uppercase text-blue-400 mb-1">{card.name}</p>
-                   <p className="text-2xl font-black italic mb-3">€{card.price}</p>
-                   <button 
-                     onClick={() => handleWhatsApp(card.name, card.price)}
-                     className="w-full bg-white text-black py-3 rounded-xl text-[10px] font-black uppercase tracking-tighter flex items-center justify-center gap-2 hover:bg-blue-500 hover:text-white transition-colors"
-                   >
-                     <ShoppingCart size={14} /> Consultar
-                   </button>
+                <div className="absolute inset-0 z-30 flex flex-col justify-end bg-gradient-to-t from-black via-black/40 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                    <p className="text-[9px] font-black uppercase text-yellow-400 mb-1">{card.name}</p>
+                    <p className="text-xl font-black italic mb-1">${Number(card.price).toLocaleString('es-CL')}</p>
+                    <p className="text-[8px] text-slate-400 font-bold flex items-center gap-1 mb-3">
+                      <MapPin size={8} /> {card.delivery || "A convenir"}
+                    </p>
+                    <button 
+                      onClick={() => handleWhatsApp(card.name, card.price)}
+                      className="w-full bg-yellow-500 text-black py-3 rounded-xl text-[10px] font-black uppercase tracking-tighter flex items-center justify-center gap-2 hover:bg-white transition-colors shadow-lg"
+                    >
+                      <ShoppingCart size={14} /> Consultar
+                    </button>
                 </div>
               </div>
             </div>
@@ -144,9 +164,8 @@ export default function Profile() {
         )}
       </main>
 
-      {/* CSS PARA EL GLOW Y EL HOLO */}
       <style>{`
-        .text-glow { text-shadow: 0 0 30px rgba(59, 130, 246, 0.6); }
+        .text-glow { text-shadow: 0 0 30px rgba(234, 179, 8, 0.4); }
         
         .holo-card { transform-style: preserve-3d; }
         
