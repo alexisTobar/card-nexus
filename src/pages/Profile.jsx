@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useParams } from 'react-router-dom';
-import { Loader2, Instagram, MessageCircle, Sparkles, Trophy, ShoppingCart, MapPin, Languages } from 'lucide-react';
+import { Loader2, MessageCircle, Sparkles, Trophy, ShoppingCart, MapPin, Languages } from 'lucide-react';
 
 export default function Profile() {
   const { uid } = useParams();
@@ -69,12 +69,14 @@ export default function Profile() {
               Coleccionista Verificado • {cards.length} Cartas en Venta
             </p>
           </div>
-          <div className="flex justify-center gap-4">
-             <button className="bg-white/5 border border-white/10 p-4 rounded-2xl hover:bg-pink-600 transition-all group">
-                <Instagram size={20} className="group-hover:scale-110 transition-transform" />
-             </button>
-             <button className="bg-white/5 border border-white/10 p-4 rounded-2xl hover:bg-green-600 transition-all group">
-                <MessageCircle size={20} className="group-hover:scale-110 transition-transform" />
+          <div className="flex justify-center">
+             {/* SOLO WHATSAPP */}
+             <button 
+                onClick={() => handleWhatsApp("tu perfil", "varios")}
+                className="bg-white/5 border border-white/10 p-5 rounded-3xl hover:bg-green-600 transition-all group flex items-center gap-3"
+             >
+                <MessageCircle size={24} className="group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-black uppercase tracking-widest">Contactar Vendedor</span>
              </button>
           </div>
         </div>
@@ -159,7 +161,7 @@ export default function Profile() {
 
         {cards.length === 0 && (
           <div className="text-center py-40 border-2 border-dashed border-white/5 rounded-[4rem] opacity-20">
-             <p className="font-black uppercase tracking-[0.5em]">El Vault está cerrado temporalmente.</p>
+              <p className="font-black uppercase tracking-[0.5em]">El Vault está cerrado temporalmente.</p>
           </div>
         )}
       </main>
