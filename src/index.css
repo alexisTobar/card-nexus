@@ -16,3 +16,39 @@ body {
   @apply bg-slate-950 text-white antialiased;
   font-family: 'Inter', sans-serif;
 }
+
+/* EFECTO HOLOGRÁFICO AUTOMÁTICO */
+.holo-effect {
+  background: linear-gradient(
+    110deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.1) 40%,
+    rgba(255, 255, 255, 0.4) 50%,
+    rgba(255, 255, 255, 0.1) 60%,
+    transparent 80%
+  );
+  background-size: 200% 100%;
+  mix-blend-mode: overlay;
+  animation: holoSweep 2s infinite linear;
+  opacity: 0.6;
+}
+
+@keyframes holoSweep {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Mejora de la Grid para que no corte las cartas */
+.grid {
+  perspective: 1000px;
+}
+
+/* Efecto de "Levantado" sutil constante */
+.group {
+  transform: translateY(0);
+  transition: transform 0.3s ease;
+}
+.group:hover {
+  transform: translateY(-5px);
+  border-color: rgba(234, 179, 8, 0.5);
+}
