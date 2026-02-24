@@ -261,9 +261,7 @@ export default function Dashboard() {
       {/* HEADER */}
       <header className="p-4 md:p-6 border-b-2 border-white/5 bg-slate-950/80 backdrop-blur-2xl sticky top-0 z-50 flex justify-between items-center shadow-2xl">
         <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate('/')}>
-          <div className="bg-gradient-to-tr from-yellow-500 to-yellow-200 p-2 rounded-lg rotate-3 group-hover:rotate-12 transition-transform">
-            <Layout size={18} className="text-black" />
-          </div>
+          
           <h2 className="text-2xl font-black uppercase italic tracking-tighter leading-none">
             POKE<span className="text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]">ALBUM</span>
           </h2>
@@ -281,9 +279,7 @@ export default function Dashboard() {
         {/* SECCIÓN CONFIGURAR WHATSAPP MEJORADA */}
         <section className="mb-6 animate-in slide-in-from-top-4 duration-500">
           <div className="bg-gradient-to-r from-blue-900/40 to-slate-900/40 border-2 border-blue-500/20 rounded-[2rem] p-6 flex flex-col md:flex-row items-center gap-6 backdrop-blur-md">
-            <div className={`p-4 rounded-2xl ${whatsapp ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'}`}>
-              {whatsapp ? <ShieldCheck size={32} /> : <Smartphone size={32} />}
-            </div>
+            
             <div className="flex-1 text-center md:text-left">
               <h4 className="font-black uppercase italic tracking-tighter text-lg">
                 {whatsapp ? "WhatsApp Configurado" : "Configurar WhatsApp de Ventas"}
