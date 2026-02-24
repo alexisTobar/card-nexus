@@ -151,9 +151,7 @@ export default function App() {
           <div className="lg:col-span-7 space-y-6 md:space-y-8 text-center lg:text-left order-2 lg:order-1">
             <div className="inline-flex items-center gap-3 bg-blue-600/10 border-l-4 border-blue-500 px-4 py-2">
               <ZapIcon size={14} className="text-[#ffcb05] fill-[#ffcb05]" /> 
-              <span className="text-blue-400 text-[9px] md:text-[11px] font-black uppercase tracking-widest">
-                Protocolo de Intercambio V1.5
-              </span>
+              
             </div>
             
             <h2 className="text-5xl sm:text-6xl md:text-8xl lg:text-[8.5rem] font-black uppercase leading-[0.9] tracking-tighter text-white">
