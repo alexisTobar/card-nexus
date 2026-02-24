@@ -15,7 +15,7 @@ export default function Dashboard() {
   const [profileUrl, setProfileUrl] = useState("");
   const navigate = useNavigate();
 
-  // NUEVO: Estados para WhatsApp
+  // ESTADOS WHATSAPP
   const [whatsapp, setWhatsapp] = useState("");
   const [isSavingPhone, setIsSavingPhone] = useState(false);
 
@@ -39,7 +39,7 @@ export default function Dashboard() {
       if (user) {
         setProfileUrl(`${window.location.origin}/perfil/${user.uid}`);
         loadMyCollection(user.uid);
-        loadUserProfile(user.uid); // Cargar WhatsApp
+        loadUserProfile(user.uid); 
       } else {
         navigate('/');
       }
@@ -59,28 +59,37 @@ export default function Dashboard() {
     }
   };
 
-  // GUARDAR WHATSAPP EN FIRESTORE
+  // GUARDAR WHATSAPP EN FIRESTORE (Mejorado)
   const saveWhatsapp = async () => {
+    // Validar que tenga al menos 8-9 dígitos (estándar CL)
     if (!whatsapp || whatsapp.length < 8) {
       showToast("Ingresa un número válido", "error");
       return;
     }
+
     setIsSavingPhone(true);
     try {
+      // Limpiamos el string por si el usuario pega con espacios o símbolos
+      const cleanPhone = whatsapp.toString().replace(/\D/g, '');
+      
       await setDoc(doc(db, "users", auth.currentUser.uid), {
-        whatsapp: whatsapp,
+        whatsapp: cleanPhone,
         updatedAt: serverTimestamp(),
-        displayName: auth.currentUser.displayName,
-        photoURL: auth.currentUser.photoURL
+        displayName: auth.currentUser.displayName || "Entrenador",
+        photoURL: auth.currentUser.photoURL || "",
+        uid: auth.currentUser.uid
       }, { merge: true });
+
       showToast("¡WhatsApp vinculado!");
     } catch (err) {
+      console.error(err);
       showToast("Error al vincular", "error");
+    } finally {
+      setIsSavingPhone(false);
     }
-    setIsSavingPhone(false);
   };
 
-  // DEBOUNCE PARA MÓVILES
+  // DEBOUNCE PARA BÚSQUEDA
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       if (searchQuery.length >= 3) {
@@ -269,21 +278,25 @@ export default function Dashboard() {
 
       <main className="max-w-[1400px] mx-auto p-4 md:p-8">
 
-        {/* NUEVA SECCIÓN: CONFIGURAR WHATSAPP */}
+        {/* SECCIÓN CONFIGURAR WHATSAPP MEJORADA */}
         <section className="mb-6 animate-in slide-in-from-top-4 duration-500">
           <div className="bg-gradient-to-r from-blue-900/40 to-slate-900/40 border-2 border-blue-500/20 rounded-[2rem] p-6 flex flex-col md:flex-row items-center gap-6 backdrop-blur-md">
             <div className={`p-4 rounded-2xl ${whatsapp ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'}`}>
               {whatsapp ? <ShieldCheck size={32} /> : <Smartphone size={32} />}
             </div>
             <div className="flex-1 text-center md:text-left">
-              <h4 className="font-black uppercase italic tracking-tighter text-lg">Configurar WhatsApp de Ventas</h4>
-              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Este número será usado para que los compradores te contacten directamente.</p>
+              <h4 className="font-black uppercase italic tracking-tighter text-lg">
+                {whatsapp ? "WhatsApp Configurado" : "Configurar WhatsApp de Ventas"}
+              </h4>
+              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                Los compradores verán un botón de contacto directo a este número.
+              </p>
             </div>
             <div className="flex w-full md:w-auto gap-2">
               <div className="relative flex-1 md:w-64">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xs">+56</span>
                 <input 
-                  type="number" 
+                  type="text" 
                   placeholder="9 1234 5678"
                   value={whatsapp}
                   onChange={(e) => setWhatsapp(e.target.value)}

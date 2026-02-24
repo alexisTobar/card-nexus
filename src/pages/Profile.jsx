@@ -1,33 +1,46 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { useParams, useNavigate } from 'react-router-dom'; // Importamos useNavigate
-import { Loader2, MessageCircle, Trophy, ShoppingCart, MapPin, Layers, ArrowLeft } from 'lucide-react'; // Importamos ArrowLeft
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore'; // Agregado getDoc y doc
+import { useParams, useNavigate } from 'react-router-dom';
+import { Loader2, MessageCircle, Trophy, ShoppingCart, MapPin, Layers, ArrowLeft } from 'lucide-react';
 
 export default function Profile() {
   const { uid } = useParams();
-  const navigate = useNavigate(); // Hook para la navegación
+  const navigate = useNavigate();
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState("Coleccionista");
   const [userPhoto, setUserPhoto] = useState(null);
+  
+  // NUEVO: Estado para el teléfono del perfil
+  const [userWhatsapp, setUserWhatsapp] = useState("");
 
   const backgroundUrl = "https://i.postimg.cc/wv0006cf/pokemon-tcg-pocket-trading-has-spurred-a-strange-black-marke-punu.jpg";
   
   useEffect(() => {
     const fetchProfile = async () => {
       try {
+        // 1. Cargamos el perfil del usuario para obtener su WhatsApp real
+        const userDoc = await getDoc(doc(db, "users", uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setUserWhatsapp(userData.whatsapp || "");
+          setUserName(userData.displayName || "Coleccionista");
+          setUserPhoto(userData.photoURL || null);
+        }
+
+        // 2. Cargamos las cartas de su colección
         const q = query(collection(db, "userCollections"), where("uid", "==", uid));
         const snap = await getDocs(q);
         const fetchedCards = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
         setCards(fetchedCards);
         
-        if (fetchedCards.length > 0) {
-          const data = fetchedCards[0];
-          setUserName(data.userName || "Coleccionista");
-          setUserPhoto(data.userPhoto || (typeof miLogoVikingo !== 'undefined' ? miLogoVikingo : null));
+        // Fallback: si no hay doc en "users" pero sí hay cartas, sacamos el nombre de la carta
+        if (!userDoc.exists() && fetchedCards.length > 0) {
+          setUserName(fetchedCards[0].userName || "Coleccionista");
         }
+
       } catch (err) {
         console.error("Error al cargar perfil:", err);
       } finally {
@@ -37,10 +50,22 @@ export default function Profile() {
     fetchProfile();
   }, [uid]);
 
+  // FUNCIÓN WHATSAPP MEJORADA: Usa el número guardado o un fallback
   const handleWhatsApp = (cardName, cardPrice) => {
-    const telefono = "56900000000"; 
-    const mensaje = `¡Hola ${userName}! He visto tu perfil en NexusHub y me interesa la carta: ${cardName} ($${Number(cardPrice).toLocaleString('es-CL')} CLP). ¿Aún la tienes?`;
-    window.open(`https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`, '_blank');
+    if (!userWhatsapp) {
+      alert("Este vendedor aún no ha vinculado su WhatsApp.");
+      return;
+    }
+
+    // Aseguramos que el número tenga el formato 569...
+    const cleanNumber = userWhatsapp.replace(/\D/g, '');
+    const finalPhone = cleanNumber.startsWith('56') ? cleanNumber : `56${cleanNumber}`;
+    
+    const mensaje = cardName === "tu perfil" 
+      ? `¡Hola ${userName}! He visto tu vitrina en NexusHub y me gustaría consultarte por algunas cartas.`
+      : `¡Hola ${userName}! He visto tu perfil en NexusHub y me interesa la carta: ${cardName} ($${Number(cardPrice).toLocaleString('es-CL')} CLP). ¿Aún la tienes?`;
+      
+    window.open(`https://wa.me/${finalPhone}?text=${encodeURIComponent(mensaje)}`, '_blank');
   };
 
   if (loading) {
