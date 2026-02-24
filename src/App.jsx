@@ -4,9 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { auth, googleProvider, db } from './lib/firebase';
 import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { 
-  Shield, Search, Sparkles, Layout, Loader2, LogOut, User, Zap, Star, 
-  Bell, X, Share2, ShoppingBag, CheckCircle, Info, ArrowRight, 
+import {
+  Shield, Search, Sparkles, Layout, Loader2, LogOut, User, Zap, Star,
+  Bell, X, Share2, ShoppingBag, CheckCircle, Info, ArrowRight,
   MousePointer2, Smartphone, MessageSquare, ExternalLink, ShieldCheck,
   Globe2, Users, Rocket, ZapIcon, Layers, Trophy, Target, Box
 } from 'lucide-react';
@@ -18,7 +18,7 @@ export default function App() {
   const [rareHeroes, setRareHeroes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
-  const [userPhone, setUserPhone] = useState(null); 
+  const [userPhone, setUserPhone] = useState(null);
   const [alert, setAlert] = useState(null);
   const [setName, setSetName] = useState("");
   const navigate = useNavigate();
@@ -53,7 +53,7 @@ export default function App() {
         setLoading(true);
         const resSets = await fetch('https://api.tcgdex.net/v2/es/sets');
         const sets = await resSets.json();
-        const lastSet = sets[sets.length - 1]; 
+        const lastSet = sets[sets.length - 1];
         setSetName(lastSet.name);
 
         const resHeroes = await fetch(`https://api.tcgdex.net/v2/es/sets/${lastSet.id}`);
@@ -61,7 +61,7 @@ export default function App() {
         const heroesList = heroesData.cards || [];
 
         const shuffled = [...heroesList].sort(() => 0.5 - Math.random());
-        setRareHeroes(shuffled.slice(0, 20)); 
+        setRareHeroes(shuffled.slice(0, 20));
         setCards(shuffled.slice(0, 24));
       } catch (err) {
         console.error("Error:", err);
@@ -76,7 +76,7 @@ export default function App() {
     try {
       const res = await signInWithPopup(auth, googleProvider);
       navigate(`/dashboard/${res.user.uid}`);
-    } catch (err) { 
+    } catch (err) {
       showAlert("Fallo en la conexión Google", "error");
     }
   };
@@ -89,10 +89,10 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-slate-100 font-sans selection:bg-[#ffcb05] selection:text-black overflow-x-hidden">
-      
+
       {/* OVERLAY DE TEXTURA GRID */}
-      <div className="fixed inset-0 z-0 pointer-events-none opacity-20" 
-           style={{ backgroundImage: `radial-gradient(#3b82f6 0.5px, transparent 0.5px)`, backgroundSize: '24px 24px' }}></div>
+      <div className="fixed inset-0 z-0 pointer-events-none opacity-20"
+        style={{ backgroundImage: `radial-gradient(#3b82f6 0.5px, transparent 0.5px)`, backgroundSize: '24px 24px' }}></div>
 
       {/* FONDO PRINCIPAL */}
       <div className="fixed inset-0 z-[-1]">
@@ -105,8 +105,8 @@ export default function App() {
       <nav className="p-3 md:px-8 border-b-2 border-[#ffcb05]/20 flex justify-between items-center bg-[#0a0a0c]/90 backdrop-blur-xl sticky top-0 z-[100]">
         <div className="flex items-center gap-2 md:gap-3 cursor-pointer group" onClick={() => navigate('/')}>
           <div className="relative flex-shrink-0">
-            <img src="https://i.postimg.cc/SsfCGDqp/toppng-com-okemon-pokeball-game-go-icon-free-pokemon-go-979x979.png" 
-                 alt="Logo" className="w-8 h-8 md:w-10 md:h-10 object-contain relative z-10" />
+            <img src="https://i.postimg.cc/SsfCGDqp/toppng-com-okemon-pokeball-game-go-icon-free-pokemon-go-979x979.png"
+              alt="Logo" className="w-8 h-8 md:w-10 md:h-10 object-contain relative z-10" />
           </div>
           <div className="flex flex-col min-w-0">
             <h1 className="font-black uppercase tracking-tighter text-lg md:text-3xl leading-none flex items-center">
@@ -116,20 +116,20 @@ export default function App() {
             <span className="text-[7px] md:text-[8px] font-bold tracking-[0.2em] text-blue-400 uppercase truncate">Chilean Trading Hub</span>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
           {user ? (
             <div className="flex items-center gap-2">
-              <button 
-                onClick={() => navigate(`/dashboard/${user.uid}`)} 
+              <button
+                onClick={() => navigate(`/dashboard/${user.uid}`)}
                 className="flex items-center gap-1 bg-[#ffcb05] text-black px-3 py-1.5 rounded-sm font-black text-[9px] md:text-[11px] uppercase hover:bg-white transition-all shadow-[3px_3px_0px_0px_rgba(255,203,5,0.3)]"
               >
-                <Layout size={12} className="hidden xs:block" /> 
+                <Layout size={12} className="hidden xs:block" />
                 <span>ÁLBUM</span>
               </button>
               <div className="flex items-center gap-1 bg-white/5 p-1 border-l border-red-500 pl-2">
-                <img src={user.photoURL} alt="avatar" referrerPolicy="no-referrer" 
-                    className="w-7 h-7 md:w-8 md:h-8 rounded-full border border-[#ffcb05]" />
+                <img src={user.photoURL} alt="avatar" referrerPolicy="no-referrer"
+                  className="w-7 h-7 md:w-8 md:h-8 rounded-full border border-[#ffcb05]" />
                 <button onClick={handleLogout} className="p-1 text-slate-400 hover:text-red-500 transition-all">
                   <LogOut size={14} />
                 </button>
@@ -144,60 +144,60 @@ export default function App() {
       </nav>
 
       <div className="relative z-10">
-        
+
         {/* HERO SECTION: REORGANIZADA PARA NO TAPAR TEXTO */}
         <header className="max-w-7xl mx-auto px-6 pt-12 pb-20 md:py-32 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           {/* TEXTO (Sube primero en móvil) */}
           <div className="lg:col-span-7 space-y-6 md:space-y-8 text-center lg:text-left order-2 lg:order-1">
             <div className="inline-flex items-center gap-3 bg-blue-600/10 border-l-4 border-blue-500 px-4 py-2">
-              <ZapIcon size={14} className="text-[#ffcb05] fill-[#ffcb05]" /> 
-              
+              <ZapIcon size={14} className="text-[#ffcb05] fill-[#ffcb05]" />
+
             </div>
-            
+
             <h2 className="text-5xl sm:text-6xl md:text-8xl lg:text-[8.5rem] font-black uppercase leading-[0.9] tracking-tighter text-white">
-              DOMINA EL <br /> 
+              DOMINA EL <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#ffcb05] to-[#faca00] italic">MERCADO.</span>
             </h2>
 
             <p className="text-slate-400 text-sm md:text-lg max-w-xl mx-auto lg:mx-0 leading-relaxed font-medium">
               Convierte tu colección de <span className="text-white border-b border-red-500">Pokémon TCG</span> en una vitrina profesional. Conecta con entrenadores de todo Chile y cierra tratos vía WhatsApp al instante.
             </p>
-            
+
           </div>
 
           {/* IMAGEN (Abajo en móvil, Derecha en PC) */}
           <div className="lg:col-span-5 order-1 lg:order-2 flex justify-center">
-             <div className="relative w-full max-w-[320px] md:max-w-none">
-                <div className="absolute inset-0 bg-blue-500/20 blur-[80px] animate-pulse"></div>
-                <div className="relative border-2 border-white/10 bg-[#111827]/50 backdrop-blur-md p-4 md:p-6 rounded-2xl lg:rotate-3 hover:rotate-0 transition-transform duration-500 shadow-2xl">
-                   <div className="flex items-center justify-between mb-4">
-                      <div className="flex gap-1">
-                         <div className="w-2 md:w-3 h-2 md:h-3 rounded-full bg-red-500"></div>
-                         <div className="w-2 md:w-3 h-2 md:h-3 rounded-full bg-[#ffcb05]"></div>
-                         <div className="w-2 md:w-3 h-2 md:h-3 rounded-full bg-green-500"></div>
-                      </div>
-                      <span className="text-[8px] md:text-[10px] font-mono text-slate-500 uppercase">STATUS: LIVE</span>
-                   </div>
-                   <img src="https://i.postimg.cc/W1qZy2jY/86c94468cdfbb6d48ec9e7677e458555.webp" className="w-full rounded-lg grayscale hover:grayscale-0 transition-all duration-700" alt="UI Preview" />
+            <div className="relative w-full max-w-[320px] md:max-w-none">
+              <div className="absolute inset-0 bg-blue-500/20 blur-[80px] animate-pulse"></div>
+              <div className="relative border-2 border-white/10 bg-[#111827]/50 backdrop-blur-md p-4 md:p-6 rounded-2xl lg:rotate-3 hover:rotate-0 transition-transform duration-500 shadow-2xl">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex gap-1">
+                    <div className="w-2 md:w-3 h-2 md:h-3 rounded-full bg-red-500"></div>
+                    <div className="w-2 md:w-3 h-2 md:h-3 rounded-full bg-[#ffcb05]"></div>
+                    <div className="w-2 md:w-3 h-2 md:h-3 rounded-full bg-green-500"></div>
+                  </div>
+                  <span className="text-[8px] md:text-[10px] font-mono text-slate-500 uppercase">STATUS: LIVE</span>
                 </div>
-             </div>
+                <img src="https://i.postimg.cc/W1qZy2jY/86c94468cdfbb6d48ec9e7677e458555.webp" className="w-full rounded-lg grayscale hover:grayscale-0 transition-all duration-700" alt="UI Preview" />
+              </div>
+            </div>
           </div>
         </header>
 
         {/* STATS: Responsivo */}
         <div className="max-w-7xl mx-auto px-6 pb-20 grid grid-cols-2 lg:grid-cols-4 gap-4">
-           {[
-             { label: "COLECCIONISTAS", val: "+2.5k", color: "text-red-500" },
-             { label: "CARTAS", val: "+15k", color: "text-blue-500" },
-             { label: "VENTAS/MES", val: "500+", color: "text-[#ffcb05]" },
-             { label: "REGIÓN", val: "CHILE", color: "text-green-500" }
-           ].map((stat, i) => (
-             <div key={i} className="bg-[#0a0a0c] border border-white/5 p-4 md:p-6 rounded-sm relative overflow-hidden group">
-               <div className="absolute top-0 left-0 w-1 h-full bg-current opacity-50 group-hover:w-full group-hover:opacity-5 transition-all"></div>
-               <p className={`text-[8px] md:text-[10px] font-black uppercase tracking-widest mb-1 ${stat.color}`}>{stat.label}</p>
-               <p className="text-xl md:text-3xl font-black text-white italic">{stat.val}</p>
-             </div>
-           ))}
+          {[
+            { label: "COLECCIONISTAS", val: "+2.5k", color: "text-red-500" },
+            { label: "CARTAS", val: "+15k", color: "text-blue-500" },
+            { label: "VENTAS/MES", val: "500+", color: "text-[#ffcb05]" },
+            { label: "REGIÓN", val: "CHILE", color: "text-green-500" }
+          ].map((stat, i) => (
+            <div key={i} className="bg-[#0a0a0c] border border-white/5 p-4 md:p-6 rounded-sm relative overflow-hidden group">
+              <div className="absolute top-0 left-0 w-1 h-full bg-current opacity-50 group-hover:w-full group-hover:opacity-5 transition-all"></div>
+              <p className={`text-[8px] md:text-[10px] font-black uppercase tracking-widest mb-1 ${stat.color}`}>{stat.label}</p>
+              <p className="text-xl md:text-3xl font-black text-white italic">{stat.val}</p>
+            </div>
+          ))}
         </div>
 
         {/* PASO A PASO */}
@@ -208,7 +208,7 @@ export default function App() {
             </h3>
             <div className="w-16 h-1 bg-red-600 mx-auto"></div>
           </div>
-          
+
           <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 relative z-10">
             {[
               { step: "INF", icon: User, t: "SINCRONIZA", d: "Conecta tu ID de Google. Es rápido y seguro." },
@@ -229,44 +229,47 @@ export default function App() {
         </section>
 
         {/* CARROUSEL */}
+
+        {/* CARROUSEL */}
         <section className="py-20 overflow-hidden relative">
           <div className="max-w-7xl mx-auto px-6 mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/10 pb-6 text-center md:text-left">
             <div className="space-y-1">
-               <span className="text-[#ffcb05] font-black text-[9px] tracking-[0.4em] uppercase">Último Lanzamiento</span>
-               <h3 className="font-black uppercase italic text-2xl md:text-5xl tracking-tighter truncate">{setName}</h3>
+              <span className="text-[#ffcb05] font-black text-[9px] tracking-[0.4em] uppercase">Último Lanzamiento</span>
+              <h3 className="font-black uppercase italic text-2xl md:text-5xl tracking-tighter truncate">{setName}</h3>
             </div>
-            <button className="text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-colors border-2 border-slate-800 px-4 py-2 self-center md:self-end">Ver Todo</button>
+            
           </div>
 
-          <div className="flex w-max animate-marquee gap-4 md:gap-8 px-4">
-            {loading ? (
-                 <div className="w-screen flex justify-center py-10"><Loader2 className="animate-spin text-[#ffcb05]" size={32} /></div>
-            ) : (
-                [...rareHeroes, ...rareHeroes].map((card, idx) => (
-                    <div key={`${card.id}-${idx}`} className="w-[160px] md:w-[260px] flex-shrink-0 group">
-                        <div className="relative bg-[#111827] p-2 border border-white/5 group-hover:border-[#ffcb05] transition-all">
-                            <img src={`${card.image}/high.webp`} className="w-full h-auto rounded" alt={card.name} />
-                            <div className="mt-2 py-1 flex justify-between items-center px-1">
-                                <span className="font-black uppercase text-[8px] truncate pr-1">{card.name}</span>
-                                <span className="text-[7px] bg-white/10 px-1 text-slate-400">RARE</span>
-                            </div>
-                        </div>
+          {/* Ajuste aquí: Añadido flex-nowrap y asegurado que el contenedor no limite el ancho */}
+          <div className="relative flex overflow-visible">
+            <div className="flex flex-nowrap w-max animate-marquee gap-4 md:gap-8 px-4">
+              {loading ? (
+                <div className="w-screen flex justify-center py-10"><Loader2 className="animate-spin text-[#ffcb05]" size={32} /></div>
+              ) : (
+                /* Multiplicamos por 4 o más para móviles para asegurar que no haya huecos blancos */
+                [...rareHeroes, ...rareHeroes, ...rareHeroes].map((card, idx) => (
+                  <div key={`${card.id}-${idx}`} className="w-[140px] sm:w-[180px] md:w-[260px] flex-shrink-0 group">
+                    <div className="relative bg-[#111827] p-2 border border-white/5 group-hover:border-[#ffcb05] transition-all">
+                      <img src={`${card.image}/high.webp`} className="w-full h-auto rounded" alt={card.name} />
+                      <div className="mt-2 py-1 flex justify-between items-center px-1">
+                        <span className="font-black uppercase text-[7px] md:text-[8px] truncate pr-1">{card.name}</span>
+                        <span className="text-[6px] md:text-[7px] bg-white/10 px-1 text-slate-400">RARE</span>
+                      </div>
                     </div>
+                  </div>
                 ))
-            )}
+              )}
+            </div>
           </div>
         </section>
-
         {/* MARKET GRID */}
         <main className="max-w-7xl mx-auto px-6 pb-24">
           <div className="bg-[#111827] border-l-4 md:border-l-8 border-red-600 p-6 md:p-8 mb-12 flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="text-center md:text-left">
-              <h3 className="font-black uppercase text-xl md:text-2xl text-white italic">Base de Datos Maestra</h3>
+              <h3 className="font-black uppercase text-xl md:text-2xl text-white italic">SELECCIÓN DE ALBUM</h3>
               <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest">Datos oficiales para tus publicaciones</p>
             </div>
-            <button onClick={handleLogin} className="w-full md:w-auto bg-white text-black px-8 py-3 rounded-sm text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-xl">
-                CREAR ANUNCIO
-            </button>
+            
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-6">
@@ -291,29 +294,29 @@ export default function App() {
 
       {/* FOOTER */}
       <footer className="bg-black border-t-4 border-red-600 py-16 px-6 relative z-10">
-          <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-start gap-12">
-              <div className="space-y-4 text-center lg:text-left w-full lg:w-auto">
-                  <div className="flex items-center justify-center lg:justify-start gap-3">
-                    <img src="https://i.postimg.cc/SsfCGDqp/toppng-com-okemon-pokeball-game-go-icon-free-pokemon-go-979x979.png" className="w-8 h-8 object-contain" alt="Logo" />
-                    <h4 className="font-black italic text-xl md:text-2xl uppercase tracking-tighter">Poke<span className="text-[#ffcb05]">Album</span></h4>
-                  </div>
-                  <p className="text-slate-500 text-[9px] font-bold uppercase tracking-widest leading-loose mx-auto lg:mx-0 max-w-xs">
-                      Gestión TCG optimizada para Chile. <br/>
-                      <span className="text-white">Hecho para coleccionistas.</span>
-                  </p>
-              </div>
-
-              <div className="flex flex-col items-center justify-center space-y-4 border-y lg:border-y-0 lg:border-x border-white/5 py-8 lg:py-0 w-full lg:w-1/3">
-                <span className="text-[8px] uppercase font-black tracking-[0.4em] text-red-500">Authorized by</span>
-                <img src="https://i.postimg.cc/Pq17zs7H/vikingo-sin-fondo-tex-blanco.png" className="h-16 md:h-20 object-contain brightness-75" alt="Juegos Vikingos" />
-              </div>
-
-              <div className="flex flex-col items-center lg:items-end gap-1 font-mono w-full lg:w-auto">
-                  <p className="text-slate-700 text-[9px] font-black uppercase">v1.5.0_stable</p>
-                  <p className="text-white font-black text-4xl md:text-5xl tracking-tighter italic leading-none">2026</p>
-                  <p className="text-[#ffcb05] text-[9px] font-black uppercase tracking-widest">Santiago // Chile</p>
-              </div>
+        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-start gap-12">
+          <div className="space-y-4 text-center lg:text-left w-full lg:w-auto">
+            <div className="flex items-center justify-center lg:justify-start gap-3">
+              <img src="https://i.postimg.cc/SsfCGDqp/toppng-com-okemon-pokeball-game-go-icon-free-pokemon-go-979x979.png" className="w-8 h-8 object-contain" alt="Logo" />
+              <h4 className="font-black italic text-xl md:text-2xl uppercase tracking-tighter">Poke<span className="text-[#ffcb05]">Album</span></h4>
+            </div>
+            <p className="text-slate-500 text-[9px] font-bold uppercase tracking-widest leading-loose mx-auto lg:mx-0 max-w-xs">
+              Gestión TCG optimizada para Chile. <br />
+              <span className="text-white">Hecho para coleccionistas.</span>
+            </p>
           </div>
+
+          <div className="flex flex-col items-center justify-center space-y-4 border-y lg:border-y-0 lg:border-x border-white/5 py-8 lg:py-0 w-full lg:w-1/3">
+            <span className="text-[8px] uppercase font-black tracking-[0.4em] text-red-500">Authorized by</span>
+            <img src="https://i.postimg.cc/Pq17zs7H/vikingo-sin-fondo-tex-blanco.png" className="h-16 md:h-20 object-contain brightness-75" alt="Juegos Vikingos" />
+          </div>
+
+          <div className="flex flex-col items-center lg:items-end gap-1 font-mono w-full lg:w-auto">
+            <p className="text-slate-700 text-[9px] font-black uppercase">v1.5.0_stable</p>
+            <p className="text-white font-black text-4xl md:text-5xl tracking-tighter italic leading-none">2026</p>
+            <p className="text-[#ffcb05] text-[9px] font-black uppercase tracking-widest">Santiago // Chile</p>
+          </div>
+        </div>
       </footer>
 
       <style>{`
