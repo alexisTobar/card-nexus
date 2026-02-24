@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../lib/firebase';
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { Search, Plus, Trash2, Layout, Share2, Loader2, Sparkles, X, Globe, Copy, Check, ExternalLink, MapPin, Info, AlertCircle, Bell, Camera, Languages } from 'lucide-react';
+import { Search, Plus, Trash2, Layout, Share2, Loader2, Sparkles, X, Globe, Copy, Check, ExternalLink, MapPin, Info, AlertCircle, Bell, Camera, Languages, Hash } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import Scanner from '../components/Scanner';
@@ -21,11 +21,12 @@ export default function Dashboard() {
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, id: null });
   const [selectedCard, setSelectedCard] = useState(null);
   
-  // ESTADO EXTENDIDO CON IDIOMA
+  // ESTADO EXTENDIDO CON IDIOMA Y CANTIDAD
   const [cardDetails, setCardDetails] = useState({
     price: "",
     status: "Near Mint",
-    language: "Inglés", // Valor por defecto
+    language: "Inglés",
+    quantity: "1", // Nueva propiedad
     delivery: "",
     description: ""
   });
@@ -88,7 +89,7 @@ export default function Dashboard() {
   const handleScannedName = (name) => {
     setSearchQuery(name);
     setShowScanner(false);
-    searchOfficial(name); // Búsqueda inmediata con el nombre detectado
+    searchOfficial(name);
   };
 
   const clearSearch = () => {
@@ -110,16 +111,17 @@ export default function Dashboard() {
         image: `${selectedCard.image}/high.webp`,
         price: Number(cardDetails.price),
         status: cardDetails.status,
-        language: cardDetails.language, // Guardamos el idioma
+        language: cardDetails.language,
+        quantity: Number(cardDetails.quantity) || 1, // Guardamos la cantidad
         delivery: cardDetails.delivery,
         description: cardDetails.description,
-        currency: "CLP", // Forzamos CLP
+        currency: "CLP",
         cardId: selectedCard.id,
         createdAt: serverTimestamp()
       });
       
       setSelectedCard(null);
-      setCardDetails({ price: "", status: "Near Mint", language: "Inglés", delivery: "", description: "" });
+      setCardDetails({ price: "", status: "Near Mint", language: "Inglés", quantity: "1", delivery: "", description: "" });
       loadMyCollection(auth.currentUser.uid);
       showToast("¡Carta añadida con éxito!");
     } catch (err) { showToast("Error al guardar", "error"); }
@@ -274,6 +276,14 @@ export default function Dashboard() {
               <div key={card.id} className="bg-slate-900/40 rounded-[2rem] border-2 border-white/5 overflow-hidden flex flex-col group hover:border-yellow-500/30 transition-all shadow-lg">
                 <div className="relative aspect-[3/4] overflow-hidden">
                   <img src={card.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={card.name} />
+                  
+                  {/* INDICADOR DE CANTIDAD EN LA CARTA */}
+                  {card.quantity > 1 && (
+                    <div className="absolute top-3 left-3 bg-white text-black font-black text-[10px] px-2 py-1 rounded-lg shadow-xl z-20 border border-black/10">
+                      x{card.quantity}
+                    </div>
+                  )}
+
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-60" />
                   <button onClick={() => confirmDelete(card.id)} className="absolute top-3 right-3 bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white p-3 rounded-2xl backdrop-blur-md active:scale-75 transition-all border border-red-500/20 shadow-xl">
                     <Trash2 size={16} strokeWidth={2.5} />
@@ -335,27 +345,37 @@ export default function Dashboard() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-500 ml-1 tracking-widest">Precio (CLP)</label>
+                  <label className="text-[10px] font-black uppercase text-slate-500 ml-1 tracking-widest">Precio Unidad (CLP)</label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-yellow-500">$</span>
                     <input type="number" placeholder="0" className="w-full bg-black/40 border-2 border-white/10 rounded-2xl py-4 pl-8 pr-4 outline-none focus:border-yellow-500 font-black text-lg transition-all"
                       value={cardDetails.price} onChange={(e) => setCardDetails({...cardDetails, price: e.target.value})} />
                   </div>
                 </div>
+                
+                {/* INPUT DE CANTIDAD */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-500 ml-1 tracking-widest">Estado</label>
-                  <select className="w-full bg-black/40 border-2 border-white/10 rounded-2xl p-4 outline-none font-black text-sm appearance-none cursor-pointer focus:border-yellow-500 text-yellow-400" 
-                    value={cardDetails.status} onChange={(e) => setCardDetails({...cardDetails, status: e.target.value})}>
-                    <option>Near Mint</option>
-                    <option>Mint (10)</option>
-                    <option>Lightly Played</option>
-                    <option>Played</option>
-                    <option>Damaged</option>
-                  </select>
+                  <label className="text-[10px] font-black uppercase text-slate-500 ml-1 tracking-widest">Cant. de Copias</label>
+                  <div className="relative">
+                    <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-yellow-500" size={16} />
+                    <input type="number" min="1" className="w-full bg-black/40 border-2 border-white/10 rounded-2xl py-4 pl-10 pr-4 outline-none focus:border-yellow-500 font-black text-lg transition-all text-yellow-400"
+                      value={cardDetails.quantity} onChange={(e) => setCardDetails({...cardDetails, quantity: e.target.value})} />
+                  </div>
                 </div>
               </div>
 
-              {/* SELECT DE IDIOMA AÑADIDO */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-500 ml-1 tracking-widest">Estado</label>
+                <select className="w-full bg-black/40 border-2 border-white/10 rounded-2xl p-4 outline-none font-black text-sm appearance-none cursor-pointer focus:border-yellow-500 text-yellow-400" 
+                  value={cardDetails.status} onChange={(e) => setCardDetails({...cardDetails, status: e.target.value})}>
+                  <option>Near Mint</option>
+                  <option>Mint (10)</option>
+                  <option>Lightly Played</option>
+                  <option>Played</option>
+                  <option>Damaged</option>
+                </select>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase text-slate-500 ml-1 tracking-widest flex items-center gap-2">
                   <Languages size={12}/> Idioma de la Carta
@@ -394,6 +414,7 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* MODAL DE ELIMINAR Y ESTILOS SE MANTIENEN IGUAL... */}
       {deleteConfirm.show && (
         <div className="fixed inset-0 z-[160] flex items-center justify-center p-6 bg-black/90 backdrop-blur-sm">
           <div className="bg-slate-900 border-2 border-red-500/50 w-full max-w-xs rounded-[2.5rem] p-8 text-center space-y-6 shadow-[0_0_50px_rgba(239,68,68,0.2)] animate-in zoom-in duration-200">
