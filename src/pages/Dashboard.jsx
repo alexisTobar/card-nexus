@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../lib/firebase';
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc, serverTimestamp, updateDoc, getDoc, setDoc } from 'firebase/firestore';
-import { Search, Plus, Trash2, Layout, Share2, Loader2, Sparkles, X, Globe, Copy, Check, ExternalLink, MapPin, Info, AlertCircle, MessageCircle, Languages, Hash, Layers, Edit3, Smartphone, ShieldCheck } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Search, Plus, Trash2, Share2, Loader2, Sparkles, X, Copy, Check, ExternalLink, MapPin, AlertCircle, MessageCircle, Languages, Hash, Layers, Edit3, FolderPlus, BookOpen, AlertTriangle, Minus, ShieldAlert } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 
 export default function Dashboard() {
+  const { uid: urlUid } = useParams(); // Capturamos el UID de la URL si existe
   const [myCards, setMyCards] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -15,7 +16,15 @@ export default function Dashboard() {
   const [profileUrl, setProfileUrl] = useState("");
   const navigate = useNavigate();
 
-  // ESTADOS WHATSAPP
+  // Esta variable define si estamos viendo nuestro perfil o el de alguien más (Admin Mode)
+  const isAdminView = urlUid && auth.currentUser?.uid !== urlUid;
+  const targetUid = urlUid || auth.currentUser?.uid;
+
+  const [albums, setAlbums] = useState([]);
+  const [activeAlbum, setActiveAlbum] = useState(null);
+  const [isCreatingAlbum, setIsCreatingAlbum] = useState(false);
+  const [newAlbumName, setNewAlbumName] = useState("");
+
   const [whatsapp, setWhatsapp] = useState("");
   const [isSavingPhone, setIsSavingPhone] = useState(false);
 
@@ -25,53 +34,89 @@ export default function Dashboard() {
   const [isEditing, setIsEditing] = useState(false);
 
   const [cardDetails, setCardDetails] = useState({
-    price: "",
-    status: "Near Mint",
-    language: "Inglés",
-    quantity: "1",
-    delivery: "",
-    description: ""
+    price: "", status: "Near Mint", language: "Inglés", quantity: 1, delivery: "", description: ""
   });
 
-  // EFECTO DE AUTENTICACIÓN Y CARGA DE PERFIL
+  // Suscripción a autenticación mejorada
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
-        setProfileUrl(`${window.location.origin}/perfil/${user.uid}`);
-        loadMyCollection(user.uid);
-        loadUserProfile(user.uid); 
-      } else {
+        loadAlbums(targetUid); 
+        loadUserProfile(targetUid); 
+      } else if (!urlUid) {
+        // Si no hay usuario y no estamos viendo un perfil público, redirigir
         navigate('/');
       }
     });
     return () => unsubscribe();
-  }, []);
+  }, [navigate, targetUid, urlUid]);
 
-  // CARGAR WHATSAPP DESDE FIRESTORE
-  const loadUserProfile = async (uid) => {
+  // Actualizar URL de perfil compartible
+  useEffect(() => {
+    if (targetUid && activeAlbum) {
+      setProfileUrl(`${window.location.origin}/perfil/${targetUid}?album=${activeAlbum.id}`);
+    }
+  }, [activeAlbum, targetUid]);
+
+  const loadAlbums = async (uid) => {
+    if (!uid) return;
+    setLoading(true);
     try {
-      const userDoc = await getDoc(doc(db, "users", uid));
-      if (userDoc.exists()) {
-        setWhatsapp(userDoc.data().whatsapp || "");
+      const q = query(collection(db, "albums"), where("uid", "==", uid));
+      const snap = await getDocs(q);
+      const albumList = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setAlbums(albumList);
+      
+      if (albumList.length > 0) {
+        setActiveAlbum(albumList[0]);
+        loadMyCollection(uid, albumList[0].id);
+      } else {
+        setMyCards([]);
+        setLoading(false);
       }
-    } catch (err) {
-      console.error("Error cargando perfil:", err);
+    } catch (err) { 
+      console.error("Error cargando álbumes:", err);
+      setLoading(false);
     }
   };
 
-  // GUARDAR WHATSAPP EN FIRESTORE (Mejorado)
+  const createAlbum = async () => {
+    if (isAdminView) return;
+    if (!newAlbumName.trim()) return;
+    try {
+      const nameUpper = newAlbumName.toUpperCase();
+      const docRef = await addDoc(collection(db, "albums"), {
+        uid: auth.currentUser.uid,
+        name: nameUpper,
+        createdAt: serverTimestamp()
+      });
+      const newAlbum = { id: docRef.id, name: nameUpper };
+      setAlbums(prev => [...prev, newAlbum]);
+      setActiveAlbum(newAlbum);
+      setNewAlbumName("");
+      setIsCreatingAlbum(false);
+      showToast("¡Nuevo álbum creado!");
+      setMyCards([]); 
+    } catch (err) { showToast("Error al crear álbum", "error"); }
+  };
+
+  const loadUserProfile = async (uid) => {
+    if (!uid) return;
+    try {
+      const userDoc = await getDoc(doc(db, "users", uid));
+      if (userDoc.exists()) setWhatsapp(userDoc.data().whatsapp || "");
+    } catch (err) { console.error(err); }
+  };
+
   const saveWhatsapp = async () => {
-    // Validar que tenga al menos 8-9 dígitos (estándar CL)
-    if (!whatsapp || whatsapp.length < 8) {
-      showToast("Ingresa un número válido", "error");
+    if (isAdminView) return;
+    const cleanPhone = whatsapp.toString().replace(/\D/g, '');
+    if (cleanPhone.length < 8) {
+      showToast("Número inválido", "error");
       return;
     }
-
     setIsSavingPhone(true);
     try {
-      // Limpiamos el string por si el usuario pega con espacios o símbolos
-      const cleanPhone = whatsapp.toString().replace(/\D/g, '');
-      
       await setDoc(doc(db, "users", auth.currentUser.uid), {
         whatsapp: cleanPhone,
         updatedAt: serverTimestamp(),
@@ -79,147 +124,126 @@ export default function Dashboard() {
         photoURL: auth.currentUser.photoURL || "",
         uid: auth.currentUser.uid
       }, { merge: true });
-
       showToast("¡WhatsApp vinculado!");
-    } catch (err) {
-      console.error(err);
-      showToast("Error al vincular", "error");
-    } finally {
-      setIsSavingPhone(false);
-    }
+    } catch (err) { showToast("Error al vincular", "error"); }
+    finally { setIsSavingPhone(false); }
   };
 
-  // DEBOUNCE PARA BÚSQUEDA
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      if (searchQuery.length >= 3) {
-        searchOfficial();
-      } else if (searchQuery.length === 0) {
-        setResults([]);
-      }
-    }, 800);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery]);
-
-  const showToast = (message, type = "success") => {
-    setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
-  };
-
-  const loadMyCollection = async (uid) => {
+  const loadMyCollection = async (uid, albumId) => {
     setLoading(true);
     try {
-      const q = query(collection(db, "userCollections"), where("uid", "==", uid));
+      const q = query(
+        collection(db, "userCollections"), 
+        where("uid", "==", uid),
+        where("albumId", "==", albumId)
+      );
       const snap = await getDocs(q);
       setMyCards(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    } catch (err) { console.error("Error:", err); }
+    } catch (err) { console.error(err); }
     setLoading(false);
   };
 
   const searchOfficial = async () => {
+    if (isAdminView) return; 
     if (!searchQuery.trim()) return;
     setIsSearching(true);
     try {
-      const resEs = await fetch(`https://api.tcgdex.net/v2/es/cards?name=${encodeURIComponent(searchQuery)}`);
-      const dataEs = await resEs.json();
-      let combined = Array.isArray(dataEs) ? dataEs : [];
-      if (combined.length < 8) {
-        const resEn = await fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(searchQuery)}`);
-        const dataEn = await resEn.json();
-        if (Array.isArray(dataEn)) combined = [...combined, ...dataEn];
-      }
-      const uniqueCards = [];
-      const seenIds = new Set();
-      for (const item of combined) {
-        if (!seenIds.has(item.id) && item.image) {
-          seenIds.add(item.id);
-          uniqueCards.push(item);
-        }
-      }
-      setResults(uniqueCards.slice(0, 20));
-      if (uniqueCards.length === 0) showToast("No se encontraron cartas", "error");
+      const res = await fetch(`https://api.tcgdex.net/v2/es/cards?name=${encodeURIComponent(searchQuery)}`);
+      const data = await res.json();
+      const combined = Array.isArray(data) ? data : [];
+      setResults(combined.filter(c => c.image).slice(0, 18));
     } catch (err) { 
         console.error(err);
-        showToast("Error de conexión", "error"); 
+        showToast("Error en la búsqueda", "error"); 
     }
     setIsSearching(false);
   };
+
+  useEffect(() => {
+    const timer = setTimeout(() => { 
+        if (searchQuery.length >= 3) searchOfficial(); 
+        else setResults([]);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const clearSearch = () => {
     setSearchQuery("");
     setResults([]);
   };
 
-  const handleEditClick = (card) => {
+  const openAddModal = (card) => {
+    if (isAdminView) return;
+    setIsEditing(false);
+    setSelectedCard(card);
+    setCardDetails({ price: "", status: "Near Mint", language: "Inglés", quantity: 1, delivery: "" });
+  };
+
+  const openEditModal = (card) => {
+    if (isAdminView) return;
     setIsEditing(true);
     setSelectedCard(card);
     setCardDetails({
       price: card.price,
-      status: card.status,
+      status: card.status || "Near Mint",
       language: card.language || "Inglés",
-      quantity: card.quantity,
-      delivery: card.delivery || "",
-      description: card.description || ""
+      quantity: card.quantity || 1,
+      delivery: card.delivery || ""
     });
   };
 
   const saveCardToFirestore = async () => {
-    if (!cardDetails.price) {
-      showToast("Ingresa un precio válido", "error");
-      return;
-    }
+    if (isAdminView) return;
+    if (!activeAlbum) return showToast("Crea un álbum primero", "error");
+    if (!cardDetails.price || cardDetails.price <= 0) return showToast("Ingresa un precio válido", "error");
 
     try {
+      const cardPayload = {
+        price: Number(cardDetails.price),
+        status: cardDetails.status,
+        language: cardDetails.language,
+        quantity: Number(cardDetails.quantity) || 1,
+        delivery: cardDetails.delivery,
+        updatedAt: serverTimestamp()
+      };
+
       if (isEditing) {
-        const cardRef = doc(db, "userCollections", selectedCard.id);
-        await updateDoc(cardRef, {
-          price: Number(cardDetails.price),
-          status: cardDetails.status,
-          language: cardDetails.language,
-          quantity: Number(cardDetails.quantity) || 1,
-          delivery: cardDetails.delivery,
-          description: cardDetails.description,
-          updatedAt: serverTimestamp()
-        });
-        showToast("¡Carta actualizada!");
+        await updateDoc(doc(db, "userCollections", selectedCard.id), cardPayload);
+        showToast("¡Actualizada!");
       } else {
         await addDoc(collection(db, "userCollections"), {
+          ...cardPayload,
           uid: auth.currentUser.uid,
-          userName: auth.currentUser.displayName,
+          albumId: activeAlbum.id,
+          userName: auth.currentUser.displayName || "Entrenador",
           name: selectedCard.name,
-          image: `${selectedCard.image}/high.webp`,
-          price: Number(cardDetails.price),
-          status: cardDetails.status,
-          language: cardDetails.language,
-          quantity: Number(cardDetails.quantity) || 1,
-          delivery: cardDetails.delivery,
-          description: cardDetails.description,
+          image: selectedCard.image.includes('high.webp') ? selectedCard.image : `${selectedCard.image}/high.webp`,
           currency: "CLP",
-          cardId: selectedCard.id,
           createdAt: serverTimestamp()
         });
-        showToast("¡Carta añadida con éxito!");
+        showToast("¡Añadida al álbum!");
       }
-
       setSelectedCard(null);
-      setIsEditing(false);
-      setCardDetails({ price: "", status: "Near Mint", language: "Inglés", quantity: "1", delivery: "", description: "" });
-      loadMyCollection(auth.currentUser.uid);
-    } catch (err) { showToast("Error al guardar", "error"); }
-  };
-
-  const confirmDelete = (id) => {
-    setDeleteConfirm({ show: true, id });
+      loadMyCollection(auth.currentUser.uid, activeAlbum.id);
+    } catch (err) { 
+        console.error(err);
+        showToast("Error al guardar", "error"); 
+    }
   };
 
   const executeDelete = async () => {
+    if (isAdminView) return;
     try {
       await deleteDoc(doc(db, "userCollections", deleteConfirm.id));
       setDeleteConfirm({ show: false, id: null });
-      loadMyCollection(auth.currentUser.uid);
+      loadMyCollection(targetUid, activeAlbum.id);
       showToast("Carta eliminada", "error");
-    } catch (err) { showToast("Error al eliminar", "error"); }
+    } catch (err) { showToast("Error al borrar", "error"); }
+  };
+
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
   };
 
   const copyToClipboard = () => {
@@ -229,329 +253,318 @@ export default function Dashboard() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const shareWhatsApp = () => {
-    const text = encodeURIComponent(`¡Hola! Revisa mi colección de cartas Pokémon en NexusHub: ${profileUrl}`);
-    window.open(`https://wa.me/?text=${text}`, '_blank');
-  };
-
-  if (!auth.currentUser && loading) {
-    return (
-      <div className="min-h-screen bg-[#020617] flex items-center justify-center">
-        <Loader2 className="animate-spin text-yellow-400" size={40} />
-      </div>
-    );
-  }
-
   return (
-    <div 
-      className="min-h-screen bg-[#020617] text-white font-sans overflow-x-hidden selection:bg-yellow-400 selection:text-black bg-fixed bg-cover bg-center"
-      style={{ backgroundImage: "linear-gradient(to bottom, rgba(2, 6, 23, 0.8), rgba(2, 6, 23, 0.95)), url('https://i.postimg.cc/DZ8X3nKw/pokemon-card-pictures-7g0mrmm3f22v4c2l.jpg')" }}
-    >
+    <div className="min-h-screen bg-[#020617] text-white font-sans bg-fixed bg-cover"
+      style={{ backgroundImage: "linear-gradient(to bottom, rgba(2, 6, 23, 0.9), rgba(2, 6, 23, 0.98)), url('https://i.postimg.cc/DZ8X3nKw/pokemon-card-pictures-7g0mrmm3f22v4c2l.jpg')" }}>
+      
+      {/* INDICADOR DE MODO ADMIN */}
+      {isAdminView && (
+        <div className="bg-red-600 text-white text-[10px] font-black uppercase py-2 text-center sticky top-0 z-[100] flex items-center justify-center gap-2">
+          <ShieldAlert size={14} /> Estás visualizando el perfil del usuario: {targetUid} (MODO LECTURA)
+        </div>
+      )}
 
-      {/* TOAST NOTIFICATION */}
       {toast.show && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] w-[92%] max-w-sm animate-in zoom-in duration-300">
-          <div className={`${toast.type === 'success' ? 'bg-yellow-500 text-black' : 'bg-red-600 text-white'} px-6 py-4 rounded-2xl shadow-[0_0_30px_rgba(234,179,8,0.3)] flex items-center gap-3 border-2 border-white/20 backdrop-blur-md`}>
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-sm">
+          <div className={`${toast.type === 'success' ? 'bg-yellow-500 text-black' : 'bg-red-600 text-white'} px-6 py-4 rounded-2xl font-black uppercase text-xs flex items-center gap-3 shadow-2xl animate-in fade-in zoom-in duration-300`}>
             {toast.type === 'success' ? <Sparkles size={18} /> : <AlertCircle size={18} />}
-            <span className="text-xs font-black uppercase tracking-tighter">{toast.message}</span>
+            {toast.message}
           </div>
         </div>
       )}
 
-      {/* HEADER */}
-      <header className="p-4 md:p-6 border-b-2 border-white/5 bg-slate-950/80 backdrop-blur-2xl sticky top-0 z-50 flex justify-between items-center shadow-2xl">
-        <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate('/')}>
-          
-          <h2 className="text-2xl font-black uppercase italic tracking-tighter leading-none">
-            POKE<span className="text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]">ALBUM</span>
-          </h2>
+      <header className={`p-4 md:p-6 border-b border-white/5 bg-slate-950/80 backdrop-blur-xl sticky ${isAdminView ? 'top-8' : 'top-0'} z-50 flex justify-between items-center`}>
+        <h2 className="text-2xl font-black italic tracking-tighter cursor-pointer" onClick={() => navigate('/')}>
+          POKE<span className="text-yellow-400">ALBUM</span>
+        </h2>
+        <div className="flex gap-2">
+            <button onClick={() => window.open(profileUrl, '_blank')} className="bg-white/5 p-3 rounded-2xl border border-white/10 text-yellow-400 hover:bg-yellow-500 hover:text-black transition-colors">
+              <ExternalLink size={20} />
+            </button>
         </div>
-        <button
-          onClick={() => navigate(`/perfil/${auth.currentUser?.uid}`)}
-          className="bg-white/5 hover:bg-white/10 p-3 rounded-2xl border border-white/10 transition-all active:scale-90"
-        >
-          <Share2 size={20} className="text-yellow-400" />
-        </button>
       </header>
 
-      <main className="max-w-[1400px] mx-auto p-4 md:p-8">
-
-        {/* SECCIÓN CONFIGURAR WHATSAPP MEJORADA */}
-        <section className="mb-6 animate-in slide-in-from-top-4 duration-500">
-          <div className="bg-gradient-to-r from-blue-900/40 to-slate-900/40 border-2 border-blue-500/20 rounded-[2rem] p-6 flex flex-col md:flex-row items-center gap-6 backdrop-blur-md">
-            
-            <div className="flex-1 text-center md:text-left">
-              <h4 className="font-black uppercase italic tracking-tighter text-lg">
-                {whatsapp ? "WhatsApp Configurado" : "Configurar WhatsApp de Ventas"}
+      <main className="max-w-[1200px] mx-auto p-4 md:p-8 space-y-10">
+        
+        {/* WHATSAPP CONFIG (SOLO DUEÑO) */}
+        {!isAdminView && (
+          <section className="bg-blue-900/10 border border-blue-500/30 rounded-[2rem] p-6 flex flex-col md:flex-row items-center gap-4">
+            <div className="flex-1">
+              <h4 className="font-black uppercase text-sm flex items-center gap-2 text-blue-400">
+                <MessageCircle size={18}/> Contacto WhatsApp
               </h4>
-              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
-                Los compradores verán un botón de contacto directo a este número.
-              </p>
+              <p className="text-slate-400 text-[10px] uppercase tracking-widest mt-1">Tus compradores te escribirán directamente aquí</p>
             </div>
             <div className="flex w-full md:w-auto gap-2">
-              <div className="relative flex-1 md:w-64">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xs">+56</span>
-                <input 
+              <input 
                   type="text" 
-                  placeholder="9 1234 5678"
-                  value={whatsapp}
-                  onChange={(e) => setWhatsapp(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-12 pr-4 outline-none focus:border-blue-500 transition-all font-bold text-sm"
-                />
-              </div>
+                  value={whatsapp} 
+                  onChange={(e) => setWhatsapp(e.target.value)} 
+                  placeholder="Ej: 56912345678" 
+                  className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-blue-500 min-w-[200px]" 
+              />
               <button 
-                onClick={saveWhatsapp}
-                disabled={isSavingPhone}
-                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2"
+                  onClick={saveWhatsapp} 
+                  disabled={isSavingPhone}
+                  className="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-xl font-black text-[10px] uppercase disabled:opacity-50 transition-all"
               >
-                {isSavingPhone ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                {whatsapp ? "Actualizar" : "Vincular"}
+                  {isSavingPhone ? <Loader2 className="animate-spin" size={16}/> : 'Vincular'}
               </button>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
-        {/* QR SECTION */}
-        <section className="relative overflow-hidden bg-slate-900 border-2 border-white/10 rounded-[2.5rem] p-6 mb-10 flex flex-col md:flex-row items-center gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 blur-[60px] rounded-full" />
-          <div className="bg-white p-2 rounded-2xl shadow-xl rotate-[-2deg]">
-            {profileUrl && <QRCodeSVG value={profileUrl} size={100} />}
+        {/* ALBUMS SELECTOR */}
+        <section>
+          <div className="flex items-center justify-between mb-6">
+             <h3 className="text-xs font-black uppercase text-slate-400 flex items-center gap-2">
+                <Layers size={16} className="text-yellow-500" /> Álbumes de este Usuario
+             </h3>
+             {!isAdminView && (
+               <button onClick={() => setIsCreatingAlbum(true)} className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 transition-transform active:scale-95">
+                 <Plus size={14} /> Nuevo Álbum
+               </button>
+             )}
           </div>
-          <div className="flex-1 text-center md:text-left z-10">
-            <h3 className="text-2xl font-black uppercase italic tracking-tighter mb-1">Mi Inventario <span className="text-yellow-400">Master</span></h3>
-            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-4">Link de vitrina pública para compradores</p>
-            <div className="flex flex-wrap justify-center md:justify-start gap-3">
-              <button onClick={copyToClipboard} className="bg-yellow-500 text-black px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all flex items-center gap-2 hover:bg-yellow-400">
-                {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? "Copiado" : "Copiar Enlace"}
+          
+          <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
+            {albums.length === 0 && !loading && (
+                <div className="text-slate-600 text-[10px] uppercase font-bold p-4 border border-dashed border-white/10 rounded-2xl w-full text-center">
+                    Este usuario no tiene álbumes creados.
+                </div>
+            )}
+            {albums.map(album => (
+              <button 
+                key={album.id} 
+                onClick={() => { setActiveAlbum(album); loadMyCollection(targetUid, album.id); }} 
+                className={`flex-shrink-0 px-6 py-4 rounded-2xl border-2 font-black text-[11px] uppercase transition-all flex items-center gap-3 ${activeAlbum?.id === album.id ? "bg-yellow-500 border-yellow-400 text-black shadow-[0_0_20px_rgba(234,179,8,0.3)]" : "bg-slate-900 border-white/5 text-slate-500 hover:border-white/20"}`}
+              >
+                <BookOpen size={16} /> {album.name}
               </button>
-              <button onClick={shareWhatsApp} className="bg-green-600 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all flex items-center gap-2 hover:bg-green-500">
-                <MessageCircle size={14} /> Compartir WhatsApp
-              </button>
-              <button onClick={() => window.open(profileUrl, '_blank')} className="bg-slate-800 border border-white/10 px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all flex items-center gap-2">
-                <ExternalLink size={14} /> Vista Previa
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* SEARCH SECTION */}
-        <section className="mb-14">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="h-[2px] flex-1 bg-gradient-to-r from-transparent to-white/10" />
-            <h1 className="text-sm font-black uppercase tracking-[0.4em] text-slate-500">Añadir Nueva Carta</h1>
-            <div className="h-[2px] flex-1 bg-gradient-to-l from-transparent to-white/10" />
+            ))}
           </div>
 
-          <div className="relative max-w-2xl mx-auto flex items-center gap-3">
-            <div className="relative flex-1">
-              <div className="absolute -inset-1 bg-gradient-to-r from-yellow-500 to-blue-600 rounded-[2.2rem] blur opacity-20 group-focus-within:opacity-40 transition" />
-              <div className="relative">
-                <input
-                  className="w-full bg-slate-900 border-2 border-white/10 rounded-[2rem] py-6 pl-14 pr-16 outline-none focus:border-yellow-500 focus:ring-4 focus:ring-yellow-500/10 font-bold transition-all shadow-2xl text-base"
-                  placeholder="Nombre del Pokémon (Ej: Mewtwo...)"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-yellow-500" size={22} />
-
-                {(searchQuery || results.length > 0) && (
-                  <button onClick={clearSearch} className="absolute right-4 top-1/2 -translate-y-1/2 bg-red-500/20 hover:bg-red-500 text-red-500 hover:text-white p-2.5 rounded-xl transition-all">
-                    <X size={20} strokeWidth={3} />
-                  </button>
-                )}
-
-                {isSearching && <Loader2 className="absolute right-16 top-1/2 -translate-y-1/2 animate-spin text-yellow-500" size={20} />}
-              </div>
-            </div>
-          </div>
-
-          {results.length > 0 && (
-            <div className="mt-8 animate-in slide-in-from-top-10 duration-500">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {results.map(card => (
-                  <div key={card.id} onClick={() => { setIsEditing(false); setSelectedCard(card); }} className="relative group cursor-pointer active:scale-95 transition-all">
-                    <div className="absolute -inset-1 bg-yellow-500 rounded-2xl opacity-0 group-hover:opacity-30 blur transition" />
-                    <img 
-                        src={`${card.image}/low.webp`} 
-                        loading="lazy"
-                        className="relative w-full rounded-xl shadow-2xl border-2 border-white/5 group-hover:border-yellow-500/50 transition-all" 
-                        alt={card.name} 
-                    />
-                    <div className="absolute bottom-2 right-2 bg-yellow-500 text-black p-2 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all">
-                      <Plus size={16} strokeWidth={4} />
-                    </div>
-                  </div>
-                ))}
-              </div>
+          {isCreatingAlbum && (
+            <div className="mt-4 flex gap-2 animate-in slide-in-from-top-2 duration-300">
+              <input 
+                autoFocus
+                value={newAlbumName} 
+                onChange={(e) => setNewAlbumName(e.target.value)} 
+                placeholder="NOMBRE DEL ÁLBUM..." 
+                className="bg-black/60 border border-yellow-500/50 rounded-xl px-4 py-2 text-xs font-bold flex-1 md:max-w-xs" 
+              />
+              <button onClick={createAlbum} className="bg-green-600 hover:bg-green-500 p-3 rounded-xl"><Check size={18}/></button>
+              <button onClick={() => setIsCreatingAlbum(false)} className="bg-white/10 hover:bg-red-600 p-3 rounded-xl transition-colors"><X size={18}/></button>
             </div>
           )}
         </section>
 
-        {/* MY COLLECTION SECTION */}
-        <section className="pt-10 border-t-2 border-white/5">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-2xl font-black uppercase italic tracking-tighter flex items-center gap-3">
-              <div className="w-2 h-8 bg-yellow-500" /> Mi Colección
-            </h3>
-            <span className="text-[10px] font-black bg-white/5 border border-white/10 text-slate-300 px-4 py-2 rounded-xl uppercase tracking-widest">
-              {myCards.length} SLOTS OCUPADOS
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
-            {myCards.map(card => (
-              <div key={card.id} className="relative group bg-slate-900/40 rounded-[1.5rem] border-2 border-white/10 overflow-hidden flex flex-col transition-all shadow-2xl">
-                <div className="relative aspect-[2/3] overflow-hidden bg-black">
-                  <img
-                    src={card.image}
-                    loading="lazy"
-                    className="w-full h-full object-contain"
-                    alt={card.name}
-                  />
-
-                  <div className="absolute top-2 right-2 z-30 flex flex-col gap-2">
-                    <button
-                      onClick={() => handleEditClick(card)}
-                      className="bg-black/60 hover:bg-yellow-500 text-white hover:text-black p-2 rounded-xl backdrop-blur-md transition-all border border-white/10"
-                    >
-                      <Edit3 size={14} />
-                    </button>
-                    <button
-                      onClick={() => confirmDelete(card.id)}
-                      className="bg-black/60 hover:bg-red-600 text-white p-2 rounded-xl backdrop-blur-md transition-all border border-white/10"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-
-                  <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black via-black/80 to-transparent z-20">
-                    <div className="flex gap-1 mb-1">
-                      <span className="text-[7px] font-black text-black uppercase bg-yellow-400 px-1.5 py-0.5 rounded shadow-sm">
-                        {card.status}
-                      </span>
-                      <span className="text-[7px] font-black text-white uppercase bg-blue-600 px-1.5 py-0.5 rounded shadow-sm">
-                        {card.language || "EN"}
-                      </span>
-                    </div>
-                    <p className="text-[10px] font-bold text-white/90 truncate uppercase tracking-tighter">{card.name}</p>
-                  </div>
+        {/* SHARE PANEL */}
+        {activeAlbum && (
+            <section className="bg-slate-900/80 border border-white/10 rounded-[2.5rem] p-8 flex flex-col md:flex-row items-center gap-8 backdrop-blur-sm">
+                <div className="bg-white p-3 rounded-3xl shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+                    {profileUrl && <QRCodeSVG value={profileUrl} size={100} level="H" />}
                 </div>
+                <div className="flex-1 text-center md:text-left space-y-4">
+                    <div>
+                        <span className="text-yellow-500 text-[10px] font-black uppercase tracking-[0.2em]">Link del Álbum</span>
+                        <h3 className="text-2xl font-black uppercase mt-1">{activeAlbum?.name}</h3>
+                    </div>
+                    <div className="flex flex-wrap gap-3 justify-center md:justify-start">
+                        <button onClick={copyToClipboard} className="bg-white text-black px-6 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-yellow-500 transition-colors">
+                            {copied ? <Check size={14}/> : <Copy size={14}/>} {copied ? 'Copiado' : 'Copiar Link'}
+                        </button>
+                    </div>
+                </div>
+            </section>
+        )}
 
-                <div className="p-3 bg-slate-950 border-t border-white/10 relative z-20 text-center">
-                  <div className="text-xl font-black italic tracking-tighter text-yellow-400">
-                    ${Number(card.price).toLocaleString('es-CL')}
-                  </div>
-                  <div className="flex items-center justify-center gap-1 mt-1">
-                    <span className="text-[9px] font-black text-slate-300 uppercase tracking-tighter">
-                      {card.quantity} {card.quantity > 1 ? 'Unidades' : 'Unidad'}
-                    </span>
-                  </div>
+        {/* SEARCH & ADD SECTION (SOLO DUEÑO) */}
+        {!isAdminView && (
+          <section className="space-y-6">
+            <div className="relative max-w-2xl mx-auto group">
+              <input 
+                  disabled={!activeAlbum}
+                  value={searchQuery} 
+                  onChange={(e) => setSearchQuery(e.target.value)} 
+                  className="w-full bg-slate-900/50 border-2 border-white/10 rounded-[2rem] py-5 pl-14 pr-14 font-bold outline-none focus:border-yellow-500 focus:bg-slate-900 transition-all disabled:opacity-50 text-sm md:text-base" 
+                  placeholder={activeAlbum ? "Buscar Pokémon para añadir..." : "Crea un álbum primero para buscar"} 
+              />
+              <Search className={`absolute left-5 top-1/2 -translate-y-1/2 transition-colors ${searchQuery ? 'text-yellow-500' : 'text-slate-600'}`} size={24} />
+              
+              {searchQuery && (
+                <button 
+                  onClick={clearSearch}
+                  className="absolute right-5 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 p-2 rounded-full transition-colors"
+                >
+                  <X size={18} className="text-slate-400" />
+                </button>
+              )}
+
+              {isSearching && <Loader2 className="absolute right-14 top-1/2 -translate-y-1/2 animate-spin text-yellow-500" size={20} />}
+            </div>
+
+            {results.length > 0 && (
+              <div className="space-y-4 animate-in fade-in duration-500">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 p-4 bg-white/5 rounded-[2rem] border border-white/5 shadow-inner">
+                  {results.map(card => (
+                    <div 
+                        key={card.id} 
+                        onClick={() => openAddModal(card)} 
+                        className="relative cursor-pointer hover:scale-105 active:scale-95 transition-all group"
+                    >
+                      <img src={`${card.image}/low.webp`} className="rounded-xl border-2 border-transparent group-hover:border-yellow-500 shadow-lg" alt={card.name} />
+                      <div className="absolute inset-0 bg-yellow-500/20 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center">
+                        <Plus className="text-white drop-shadow-md" size={32} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="flex justify-center">
+                   <button 
+                    onClick={clearSearch}
+                    className="bg-white/5 border border-white/10 px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600/20 hover:border-red-500/50 transition-all flex items-center gap-2 text-slate-400 hover:text-red-500"
+                   >
+                     <X size={14} /> Cerrar Resultados
+                   </button>
                 </div>
               </div>
-            ))}
+            )}
+          </section>
+        )}
+
+        {/* MY COLLECTION GRID */}
+        <section className="pt-10 border-t border-white/5">
+          <div className="flex items-end justify-between mb-8">
+            <div>
+                <h3 className="text-3xl font-black uppercase italic tracking-tighter">
+                    {activeAlbum?.name || 'Colección'}
+                </h3>
+                <p className="text-slate-500 font-bold text-xs uppercase tracking-widest">{myCards.length} Cartas en este álbum</p>
+            </div>
           </div>
+
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-600">
+                <Loader2 className="animate-spin mb-4" size={40} />
+                <p className="font-black uppercase text-xs">Accediendo a la base de datos...</p>
+            </div>
+          ) : myCards.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                {myCards.map(card => (
+                <div key={card.id} className="bg-slate-900/40 border border-white/10 rounded-[1.5rem] overflow-hidden group hover:border-yellow-500/50 transition-all hover:shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+                    <div className="relative aspect-[2/3] p-2">
+                    <img src={card.image} className="w-full h-full object-contain rounded-lg" alt={card.name} />
+                    
+                    <div className="absolute bottom-4 right-4 bg-yellow-500 text-black font-black px-3 py-1 rounded-xl text-[12px] shadow-2xl border border-black/10 z-10">
+                        x{card.quantity || 1}
+                    </div>
+
+                    {!isAdminView && (
+                      <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
+                          <button onClick={() => openEditModal(card)} className="bg-yellow-500 p-2.5 rounded-xl text-black shadow-xl hover:scale-110 transition-transform">
+                              <Edit3 size={16} />
+                          </button>
+                          <button onClick={() => setDeleteConfirm({ show: true, id: card.id })} className="bg-red-600 p-2.5 rounded-xl text-white shadow-xl hover:scale-110 transition-transform">
+                              <Trash2 size={16} />
+                          </button>
+                      </div>
+                    )}
+                    </div>
+                    <div className="p-4 bg-slate-950/50">
+                    <div className="text-xl font-black text-yellow-400 leading-none">${Number(card.price).toLocaleString('es-CL')}</div>
+                    <div className="text-[9px] font-bold text-slate-500 uppercase mt-2 truncate">{card.name}</div>
+                    <div className="flex gap-1 mt-1">
+                        <span className="text-[7px] bg-white/5 px-1.5 py-0.5 rounded border border-white/10 text-slate-400 uppercase font-bold">{card.status}</span>
+                        <span className="text-[7px] bg-white/5 px-1.5 py-0.5 rounded border border-white/10 text-slate-400 uppercase font-bold">{card.language}</span>
+                    </div>
+                    </div>
+                </div>
+                ))}
+            </div>
+          ) : (
+            <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-[3rem]">
+                <div className="bg-white/5 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <AlertTriangle className="text-slate-700" size={32} />
+                </div>
+                <h4 className="font-black uppercase text-slate-500">Álbum vacío</h4>
+                <p className="text-slate-600 text-[10px] uppercase font-bold mt-1">Este usuario no tiene cartas en este álbum.</p>
+            </div>
+          )}
         </section>
       </main>
 
-      {/* MODAL: ADD/EDIT CARD DETAILS */}
-      {selectedCard && (
-        <div className="fixed inset-0 z-[150] flex items-end md:items-center justify-center p-0 md:p-4 bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
-          <div className="bg-slate-900 border-t-4 border-yellow-500 md:border-2 md:border-yellow-500 w-full max-w-lg rounded-t-[3rem] md:rounded-[3rem] p-8 md:p-10 space-y-6 animate-in slide-in-from-bottom-full duration-500 shadow-[0_-20px_60px_rgba(234,179,8,0.2)] relative max-h-[90vh] overflow-y-auto">
-
-            <button onClick={() => { setSelectedCard(null); setIsEditing(false); }} className="absolute top-6 right-6 bg-white/5 p-3 rounded-full hover:bg-red-500 transition-all"><X size={24} /></button>
-
-            <div className="flex items-center gap-6">
-              <div className="relative">
-                <img src={isEditing ? selectedCard.image : `${selectedCard.image}/high.webp`} className="relative w-24 rounded-2xl shadow-2xl border-2 border-white/10 rotate-[-3deg]" alt="" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-2xl font-black uppercase italic tracking-tighter leading-none mb-2">{selectedCard.name}</h3>
-                <div className="inline-block bg-yellow-500/10 text-yellow-500 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest border border-yellow-500/20">
-                  {isEditing ? 'Editando Publicación' : 'Setup de Venta'}
-                </div>
-              </div>
+      {/* MODAL: ADD / EDIT CARD */}
+      {selectedCard && !isAdminView && (
+        <div className="fixed inset-0 z-[150] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border-2 border-yellow-500 w-full max-w-md rounded-[2.5rem] p-8 space-y-6 shadow-[0_0_50px_rgba(234,179,8,0.2)] animate-in zoom-in duration-300">
+            <div className="text-center">
+                <h3 className="text-2xl font-black uppercase italic tracking-tighter">{isEditing ? 'Editar Carta' : 'Añadir Carta'}</h3>
+                <p className="text-yellow-500 font-bold text-[10px] uppercase tracking-widest">{selectedCard.name}</p>
             </div>
-
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-500 ml-1 tracking-widest">Precio Unidad (CLP)</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-yellow-500">$</span>
-                    <input type="number" placeholder="0" className="w-full bg-black/40 border-2 border-white/10 rounded-2xl py-4 pl-8 pr-4 outline-none focus:border-yellow-500 font-black text-lg transition-all"
-                      value={cardDetails.price} onChange={(e) => setCardDetails({ ...cardDetails, price: e.target.value })} />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-slate-500 ml-1 tracking-widest">Cant. de Copias</label>
-                  <div className="relative">
-                    <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-yellow-500" size={16} />
-                    <input type="number" min="1" className="w-full bg-black/40 border-2 border-white/10 rounded-2xl py-4 pl-10 pr-4 outline-none focus:border-yellow-500 font-black text-lg transition-all text-yellow-400"
-                      value={cardDetails.quantity} onChange={(e) => setCardDetails({ ...cardDetails, quantity: e.target.value })} />
-                  </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2 bg-black/40 border border-white/10 rounded-2xl p-4">
+                <label className="text-[10px] font-black uppercase text-slate-500 mb-2 block text-center">Cantidad de copias (Stock)</label>
+                <div className="flex items-center justify-center gap-6">
+                    <button onClick={() => setCardDetails(prev => ({...prev, quantity: Math.max(1, prev.quantity - 1)}))} className="bg-white/5 hover:bg-white/10 p-3 rounded-xl transition-colors"><Minus size={20} /></button>
+                    <span className="text-3xl font-black text-white w-12 text-center">{cardDetails.quantity}</span>
+                    <button onClick={() => setCardDetails(prev => ({...prev, quantity: prev.quantity + 1}))} className="bg-yellow-500 text-black p-3 rounded-xl hover:bg-yellow-400 transition-colors"><Plus size={20} /></button>
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-slate-500 ml-1 tracking-widest">Estado</label>
-                <select className="w-full bg-black/40 border-2 border-white/10 rounded-2xl p-4 outline-none font-black text-sm text-yellow-400"
-                  value={cardDetails.status} onChange={(e) => setCardDetails({ ...cardDetails, status: e.target.value })}>
-                  <option>Near Mint</option>
-                  <option>Mint (10)</option>
-                  <option>Lightly Played</option>
-                  <option>Played</option>
-                  <option>Damaged</option>
+              <div className="col-span-2">
+                <label className="text-[10px] font-black uppercase text-slate-500 ml-2 mb-1 block">Precio Unitario (CLP)</label>
+                <input type="number" value={cardDetails.price} onChange={(e) => setCardDetails({...cardDetails, price: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 font-black text-yellow-400 text-xl outline-none focus:border-yellow-500" placeholder="0" />
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-500 ml-2 mb-1 block">Estado</label>
+                <select value={cardDetails.status} onChange={(e) => setCardDetails({...cardDetails, status: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-xs font-bold outline-none">
+                  <option>Near Mint</option><option>Lightly Played</option><option>Played</option><option>Damaged</option>
                 </select>
               </div>
-
-              <div className="space-y-2 text-left">
-                <label className="text-[10px] font-black uppercase text-slate-500 ml-1 tracking-widest">Entrega / Ubicación</label>
-                <div className="relative">
-                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-yellow-500" size={18} />
-                  <input type="text" placeholder="Ej: Metro Baquedano" className="w-full bg-black/40 border-2 border-white/10 rounded-2xl py-5 pl-12 pr-4 outline-none font-bold text-sm focus:border-yellow-500"
-                    value={cardDetails.delivery} onChange={(e) => setCardDetails({ ...cardDetails, delivery: e.target.value })} />
-                </div>
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-500 ml-2 mb-1 block">Idioma</label>
+                <select value={cardDetails.language} onChange={(e) => setCardDetails({...cardDetails, language: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-xs font-bold outline-none">
+                  <option>Inglés</option><option>Español</option><option>Japonés</option>
+                </select>
               </div>
-
-              <button onClick={saveCardToFirestore} className="w-full bg-yellow-500 hover:bg-yellow-400 text-black py-6 rounded-2xl font-black uppercase tracking-[0.2em] shadow-[0_10px_30px_rgba(234,179,8,0.3)] active:scale-95 transition-all text-sm italic">
-                {isEditing ? 'Actualizar Carta' : 'Añadir al Deck de Ventas'}
-              </button>
+              <div className="col-span-2">
+                <label className="text-[10px] font-black uppercase text-slate-500 ml-2 mb-1 block">Método de entrega / Ciudad</label>
+                <input type="text" value={cardDetails.delivery} onChange={(e) => setCardDetails({...cardDetails, delivery: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-xs font-bold outline-none" placeholder="Ej: Metro La Moneda / Envíos a todo Chile" />
+              </div>
+            </div>
+            <div className="space-y-3 pt-2">
+                <button onClick={saveCardToFirestore} className="w-full bg-yellow-500 hover:bg-yellow-400 text-black py-5 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-yellow-500/20 transition-all active:scale-95">
+                    {isEditing ? 'Guardar Cambios' : 'Confirmar y Añadir'}
+                </button>
+                <button onClick={() => setSelectedCard(null)} className="w-full text-slate-500 hover:text-white font-bold text-[10px] uppercase tracking-widest transition-colors">Cancelar</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* DELETE CONFIRMATION MODAL */}
-      {deleteConfirm.show && (
-        <div className="fixed inset-0 z-[160] flex items-center justify-center p-6 bg-black/90 backdrop-blur-sm">
-          <div className="bg-slate-900 border-2 border-red-500/50 w-full max-w-xs rounded-[2.5rem] p-8 text-center space-y-6 shadow-[0_0_50px_rgba(239,68,68,0.2)] animate-in zoom-in duration-200">
-            <div className="bg-red-500/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto text-red-500 border-2 border-red-500/20">
-              <Trash2 size={32} strokeWidth={3} />
+      {/* DELETE MODAL */}
+      {deleteConfirm.show && !isAdminView && (
+        <div className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-4 backdrop-blur-md">
+          <div className="bg-slate-900 border border-red-500/50 p-10 rounded-[3rem] text-center max-w-xs w-full shadow-[0_0_50px_rgba(239,68,68,0.2)] animate-in slide-in-from-bottom-4">
+            <div className="bg-red-500/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Trash2 className="text-red-500" size={32} />
             </div>
-            <div>
-              <h4 className="font-black uppercase italic tracking-tighter text-2xl mb-2">¿Descartar?</h4>
-              <p className="text-slate-400 text-[10px] font-bold uppercase leading-relaxed tracking-widest px-4">Esta carta será removida de tu vitrina.</p>
-            </div>
-            <div className="flex gap-3 pt-2">
-              <button onClick={() => setDeleteConfirm({ show: false, id: null })} className="flex-1 bg-white/5 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest border border-white/10">Cancelar</button>
-              <button onClick={executeDelete} className="flex-1 bg-red-600 hover:bg-red-500 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all shadow-lg shadow-red-600/20">Confirmar</button>
+            <h4 className="font-black uppercase mb-2">¿Eliminar carta?</h4>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteConfirm({show:false, id:null})} className="flex-1 bg-white/5 hover:bg-white/10 py-4 rounded-2xl font-black text-[10px] uppercase transition-colors">No, volver</button>
+              <button onClick={executeDelete} className="flex-1 bg-red-600 hover:bg-red-500 py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg shadow-red-600/20 transition-colors">Sí, borrar</button>
             </div>
           </div>
         </div>
       )}
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #020617; }
-        h1, h2, h3, h4, button { font-family: 'Archivo Black', sans-serif; }
-        input[type="number"]::-webkit-inner-spin-button, 
-        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-        .animate-in { animation: animateIn 0.3s ease-out forwards; }
-        @keyframes animateIn {
-          from { opacity: 0; transform: scale(0.95); }
-          to { opacity: 1; transform: scale(1); }
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap');
+        h1, h2, h3, h4, button, span.font-black { font-family: 'Archivo Black', sans-serif; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
     </div>
   );

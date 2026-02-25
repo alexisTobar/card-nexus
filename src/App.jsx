@@ -8,10 +8,16 @@ import {
   Shield, Search, Sparkles, Layout, Loader2, LogOut, User, Zap, Star,
   Bell, X, Share2, ShoppingBag, CheckCircle, Info, ArrowRight,
   MousePointer2, Smartphone, MessageSquare, ExternalLink, ShieldCheck,
-  Globe2, Users, Rocket, ZapIcon, Layers, Trophy, Target, Box
+  Globe2, Users, Rocket, ZapIcon, Layers, Trophy, Target, Box, Eye, Phone, ArrowLeft
 } from 'lucide-react';
 
+// IMPORTACIÓN DEL PANEL (Lo crearemos en el siguiente paso)
+import AdminPanel from './components/AdminPanel';
+
 const tcgdex = new TCGdex('es');
+
+// --- CONFIGURA TU UID AQUÍ PARA TENER ACCESO ---
+const ADMIN_UIDS = ["BI7nOIMgOfPyj0ipgOvOm4ylq983"]; 
 
 export default function App() {
   const [cards, setCards] = useState([]);
@@ -21,6 +27,8 @@ export default function App() {
   const [userPhone, setUserPhone] = useState(null);
   const [alert, setAlert] = useState(null);
   const [setName, setSetName] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
   const navigate = useNavigate();
 
   const showAlert = (msg, type = 'info') => {
@@ -32,6 +40,9 @@ export default function App() {
     const unsub = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
+        // Verificar si es Admin
+        setIsAdmin(ADMIN_UIDS.includes(currentUser.uid));
+        
         try {
           const userDoc = await getDoc(doc(db, "users", currentUser.uid));
           if (userDoc.exists()) {
@@ -42,6 +53,7 @@ export default function App() {
         }
       } else {
         setUser(null);
+        setIsAdmin(false);
       }
     });
     return () => unsub();
@@ -90,6 +102,9 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-slate-100 font-sans selection:bg-[#ffcb05] selection:text-black overflow-x-hidden">
 
+      {/* RENDERIZADO DEL PANEL ADMIN */}
+      {showAdmin && isAdmin && <AdminPanel onClose={() => setShowAdmin(false)} navigate={navigate} />}
+
       {/* OVERLAY DE TEXTURA GRID */}
       <div className="fixed inset-0 z-0 pointer-events-none opacity-20"
         style={{ backgroundImage: `radial-gradient(#3b82f6 0.5px, transparent 0.5px)`, backgroundSize: '24px 24px' }}></div>
@@ -118,6 +133,16 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* BOTÓN ADMIN SOLO VISIBLE PARA TI */}
+          {isAdmin && (
+            <button 
+              onClick={() => setShowAdmin(true)}
+              className="bg-red-600/20 text-red-500 border border-red-600 px-3 py-1.5 rounded-sm font-black text-[9px] md:text-[11px] hover:bg-red-600 hover:text-white transition-all flex items-center gap-1"
+            >
+              <Shield size={12} /> <span className="hidden sm:inline">SISTEMA</span>
+            </button>
+          )}
+
           {user ? (
             <div className="flex items-center gap-2">
               <button
@@ -145,13 +170,11 @@ export default function App() {
 
       <div className="relative z-10">
 
-        {/* HERO SECTION: REORGANIZADA PARA NO TAPAR TEXTO */}
+        {/* HERO SECTION */}
         <header className="max-w-7xl mx-auto px-6 pt-12 pb-20 md:py-32 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-          {/* TEXTO (Sube primero en móvil) */}
           <div className="lg:col-span-7 space-y-6 md:space-y-8 text-center lg:text-left order-2 lg:order-1">
             <div className="inline-flex items-center gap-3 bg-blue-600/10 border-l-4 border-blue-500 px-4 py-2">
               <ZapIcon size={14} className="text-[#ffcb05] fill-[#ffcb05]" />
-
             </div>
 
             <h2 className="text-5xl sm:text-6xl md:text-8xl lg:text-[8.5rem] font-black uppercase leading-[0.9] tracking-tighter text-white">
@@ -162,10 +185,8 @@ export default function App() {
             <p className="text-slate-400 text-sm md:text-lg max-w-xl mx-auto lg:mx-0 leading-relaxed font-medium">
               Convierte tu colección de <span className="text-white border-b border-red-500">Pokémon TCG</span> en una vitrina profesional. Conecta con entrenadores de todo Chile y cierra tratos vía WhatsApp al instante.
             </p>
-
           </div>
 
-          {/* IMAGEN (Abajo en móvil, Derecha en PC) */}
           <div className="lg:col-span-5 order-1 lg:order-2 flex justify-center">
             <div className="relative w-full max-w-[320px] md:max-w-none">
               <div className="absolute inset-0 bg-blue-500/20 blur-[80px] animate-pulse"></div>
@@ -184,7 +205,7 @@ export default function App() {
           </div>
         </header>
 
-        {/* STATS: Responsivo */}
+        {/* STATS */}
         <div className="max-w-7xl mx-auto px-6 pb-20 grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: "COLECCIONISTAS", val: "+2.5k", color: "text-red-500" },
@@ -200,7 +221,7 @@ export default function App() {
           ))}
         </div>
 
-        {/* PASO A PASO */}
+        {/* PASO A PASO - PRESERVADO */}
         <section className="bg-[#0f1115] py-20 border-y-4 border-black relative overflow-hidden">
           <div className="max-w-7xl mx-auto px-6 mb-16 text-center relative z-10">
             <h3 className="text-3xl md:text-6xl font-black uppercase italic tracking-tighter mb-4">
@@ -229,24 +250,19 @@ export default function App() {
         </section>
 
         {/* CARROUSEL */}
-
-        {/* CARROUSEL */}
         <section className="py-20 overflow-hidden relative">
           <div className="max-w-7xl mx-auto px-6 mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/10 pb-6 text-center md:text-left">
             <div className="space-y-1">
               <span className="text-[#ffcb05] font-black text-[9px] tracking-[0.4em] uppercase">Último Lanzamiento</span>
               <h3 className="font-black uppercase italic text-2xl md:text-5xl tracking-tighter truncate">{setName}</h3>
             </div>
-            
           </div>
 
-          {/* Ajuste aquí: Añadido flex-nowrap y asegurado que el contenedor no limite el ancho */}
           <div className="relative flex overflow-visible">
             <div className="flex flex-nowrap w-max animate-marquee gap-4 md:gap-8 px-4">
               {loading ? (
                 <div className="w-screen flex justify-center py-10"><Loader2 className="animate-spin text-[#ffcb05]" size={32} /></div>
               ) : (
-                /* Multiplicamos por 4 o más para móviles para asegurar que no haya huecos blancos */
                 [...rareHeroes, ...rareHeroes, ...rareHeroes].map((card, idx) => (
                   <div key={`${card.id}-${idx}`} className="w-[140px] sm:w-[180px] md:w-[260px] flex-shrink-0 group">
                     <div className="relative bg-[#111827] p-2 border border-white/5 group-hover:border-[#ffcb05] transition-all">
@@ -262,6 +278,7 @@ export default function App() {
             </div>
           </div>
         </section>
+
         {/* MARKET GRID */}
         <main className="max-w-7xl mx-auto px-6 pb-24">
           <div className="bg-[#111827] border-l-4 md:border-l-8 border-red-600 p-6 md:p-8 mb-12 flex flex-col md:flex-row items-center justify-between gap-6">
@@ -269,7 +286,6 @@ export default function App() {
               <h3 className="font-black uppercase text-xl md:text-2xl text-white italic">SELECCIÓN DE ALBUM</h3>
               <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest">Datos oficiales para tus publicaciones</p>
             </div>
-            
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-6">

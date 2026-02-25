@@ -1,5 +1,8 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { 
+  initializeFirestore, 
+  getFirestore 
+} from "firebase/firestore";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
 const firebaseConfig = {
@@ -15,7 +18,17 @@ const firebaseConfig = {
 // Inicializamos Firebase
 const app = initializeApp(firebaseConfig);
 
-// Exportamos las herramientas que usaremos en la página
-export const db = getFirestore(app);
+/**
+ * SOLUCIÓN AL ERROR ERR_BLOCKED_BY_CLIENT:
+ * Usamos initializeFirestore con 'experimentalForceLongPolling' para que las 
+ * peticiones no sean bloqueadas por AdBlockers o Antivirus.
+ */
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+});
+
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+
+// Configuración opcional para facilitar el login con Google
+googleProvider.setCustomParameters({ prompt: 'select_account' });
