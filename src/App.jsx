@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import TCGdex from '@tcgdex/sdk';
 import { useNavigate } from 'react-router-dom';
 import { auth, googleProvider, db } from './lib/firebase';
@@ -11,12 +11,10 @@ import {
   Globe2, Users, Rocket, ZapIcon, Layers, Trophy, Target, Box, Eye, Phone, ArrowLeft
 } from 'lucide-react';
 
-// IMPORTACIÓN DEL PANEL (Lo crearemos en el siguiente paso)
+// IMPORTACIÓN DEL PANEL
 import AdminPanel from './components/AdminPanel';
 
 const tcgdex = new TCGdex('es');
-
-// --- CONFIGURA TU UID AQUÍ PARA TENER ACCESO ---
 const ADMIN_UIDS = ["BI7nOIMgOfPyj0ipgOvOm4ylq983"]; 
 
 export default function App() {
@@ -40,9 +38,7 @@ export default function App() {
     const unsub = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
-        // Verificar si es Admin
         setIsAdmin(ADMIN_UIDS.includes(currentUser.uid));
-        
         try {
           const userDoc = await getDoc(doc(db, "users", currentUser.uid));
           if (userDoc.exists()) {
@@ -72,8 +68,9 @@ export default function App() {
         const heroesData = await resHeroes.json();
         const heroesList = heroesData.cards || [];
 
+        // Optimización: Mezclamos y cortamos antes de guardar en estado
         const shuffled = [...heroesList].sort(() => 0.5 - Math.random());
-        setRareHeroes(shuffled.slice(0, 20));
+        setRareHeroes(shuffled.slice(0, 15)); // Reducido ligeramente para performance
         setCards(shuffled.slice(0, 24));
       } catch (err) {
         console.error("Error:", err);
@@ -102,26 +99,22 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-slate-100 font-sans selection:bg-[#ffcb05] selection:text-black overflow-x-hidden">
 
-      {/* RENDERIZADO DEL PANEL ADMIN */}
       {showAdmin && isAdmin && <AdminPanel onClose={() => setShowAdmin(false)} navigate={navigate} />}
 
-      {/* OVERLAY DE TEXTURA GRID */}
       <div className="fixed inset-0 z-0 pointer-events-none opacity-20"
         style={{ backgroundImage: `radial-gradient(#3b82f6 0.5px, transparent 0.5px)`, backgroundSize: '24px 24px' }}></div>
 
-      {/* FONDO PRINCIPAL */}
       <div className="fixed inset-0 z-[-1]">
         <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0c] via-[#111827] to-[#020617]"></div>
         <div className="absolute top-[-10%] right-[-10%] w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-red-600/10 blur-[120px] rounded-full"></div>
         <div className="absolute bottom-[-10%] left-[-10%] w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-blue-600/10 blur-[120px] rounded-full"></div>
       </div>
 
-      {/* NAVBAR */}
       <nav className="p-3 md:px-8 border-b-2 border-[#ffcb05]/20 flex justify-between items-center bg-[#0a0a0c]/90 backdrop-blur-xl sticky top-0 z-[100]">
         <div className="flex items-center gap-2 md:gap-3 cursor-pointer group" onClick={() => navigate('/')}>
           <div className="relative flex-shrink-0">
             <img src="https://i.postimg.cc/SsfCGDqp/toppng-com-okemon-pokeball-game-go-icon-free-pokemon-go-979x979.png"
-              alt="Logo" className="w-8 h-8 md:w-10 md:h-10 object-contain relative z-10" />
+              alt="Logo" className="w-8 h-8 md:w-10 md:h-10 object-contain relative z-10" loading="eager" />
           </div>
           <div className="flex flex-col min-w-0">
             <h1 className="font-black uppercase tracking-tighter text-lg md:text-3xl leading-none flex items-center">
@@ -133,7 +126,6 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* BOTÓN ADMIN SOLO VISIBLE PARA TI */}
           {isAdmin && (
             <button 
               onClick={() => setShowAdmin(true)}
@@ -169,19 +161,15 @@ export default function App() {
       </nav>
 
       <div className="relative z-10">
-
-        {/* HERO SECTION */}
         <header className="max-w-7xl mx-auto px-6 pt-12 pb-20 md:py-32 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           <div className="lg:col-span-7 space-y-6 md:space-y-8 text-center lg:text-left order-2 lg:order-1">
             <div className="inline-flex items-center gap-3 bg-blue-600/10 border-l-4 border-blue-500 px-4 py-2">
               <ZapIcon size={14} className="text-[#ffcb05] fill-[#ffcb05]" />
             </div>
-
             <h2 className="text-5xl sm:text-6xl md:text-8xl lg:text-[8.5rem] font-black uppercase leading-[0.9] tracking-tighter text-white">
               DOMINA EL <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#ffcb05] to-[#faca00] italic">MERCADO.</span>
             </h2>
-
             <p className="text-slate-400 text-sm md:text-lg max-w-xl mx-auto lg:mx-0 leading-relaxed font-medium">
               Convierte tu colección de <span className="text-white border-b border-red-500">Pokémon TCG</span> en una vitrina profesional. Conecta con entrenadores de todo Chile y cierra tratos vía WhatsApp al instante.
             </p>
@@ -199,7 +187,12 @@ export default function App() {
                   </div>
                   <span className="text-[8px] md:text-[10px] font-mono text-slate-500 uppercase">STATUS: LIVE</span>
                 </div>
-                <img src="https://i.postimg.cc/W1qZy2jY/86c94468cdfbb6d48ec9e7677e458555.webp" className="w-full rounded-lg grayscale hover:grayscale-0 transition-all duration-700" alt="UI Preview" />
+                {/* Imagen del Hero optimizada */}
+                <img src="https://i.postimg.cc/W1qZy2jY/86c94468cdfbb6d48ec9e7677e458555.webp" 
+                  className="w-full rounded-lg grayscale hover:grayscale-0 transition-all duration-700" 
+                  alt="UI Preview" 
+                  loading="eager"
+                  decoding="async" />
               </div>
             </div>
           </div>
@@ -221,7 +214,6 @@ export default function App() {
           ))}
         </div>
 
-        {/* PASO A PASO - PRESERVADO */}
         <section className="bg-[#0f1115] py-20 border-y-4 border-black relative overflow-hidden">
           <div className="max-w-7xl mx-auto px-6 mb-16 text-center relative z-10">
             <h3 className="text-3xl md:text-6xl font-black uppercase italic tracking-tighter mb-4">
@@ -229,7 +221,6 @@ export default function App() {
             </h3>
             <div className="w-16 h-1 bg-red-600 mx-auto"></div>
           </div>
-
           <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 relative z-10">
             {[
               { step: "INF", icon: User, t: "SINCRONIZA", d: "Conecta tu ID de Google. Es rápido y seguro." },
@@ -249,7 +240,7 @@ export default function App() {
           </div>
         </section>
 
-        {/* CARROUSEL */}
+        {/* CARROUSEL OPTIMIZADO */}
         <section className="py-20 overflow-hidden relative">
           <div className="max-w-7xl mx-auto px-6 mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/10 pb-6 text-center md:text-left">
             <div className="space-y-1">
@@ -263,10 +254,15 @@ export default function App() {
               {loading ? (
                 <div className="w-screen flex justify-center py-10"><Loader2 className="animate-spin text-[#ffcb05]" size={32} /></div>
               ) : (
-                [...rareHeroes, ...rareHeroes, ...rareHeroes].map((card, idx) => (
+                [...rareHeroes, ...rareHeroes].map((card, idx) => (
                   <div key={`${card.id}-${idx}`} className="w-[140px] sm:w-[180px] md:w-[260px] flex-shrink-0 group">
                     <div className="relative bg-[#111827] p-2 border border-white/5 group-hover:border-[#ffcb05] transition-all">
-                      <img src={`${card.image}/high.webp`} className="w-full h-auto rounded" alt={card.name} />
+                      {/* CAMBIO: Se usa low.webp para el carrusel para carga instantánea */}
+                      <img src={`${card.image}/low.webp`} 
+                        className="w-full h-auto rounded" 
+                        alt={card.name} 
+                        loading="lazy"
+                        decoding="async" />
                       <div className="mt-2 py-1 flex justify-between items-center px-1">
                         <span className="font-black uppercase text-[7px] md:text-[8px] truncate pr-1">{card.name}</span>
                         <span className="text-[6px] md:text-[7px] bg-white/10 px-1 text-slate-400">RARE</span>
@@ -279,7 +275,7 @@ export default function App() {
           </div>
         </section>
 
-        {/* MARKET GRID */}
+        {/* MARKET GRID OPTIMIZADO */}
         <main className="max-w-7xl mx-auto px-6 pb-24">
           <div className="bg-[#111827] border-l-4 md:border-l-8 border-red-600 p-6 md:p-8 mb-12 flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="text-center md:text-left">
@@ -295,7 +291,13 @@ export default function App() {
               cards.map((card) => (
                 <div key={card.id} className="group bg-[#0a0a0c] border border-white/5 p-2 hover:bg-[#111827] transition-all">
                   <div className="relative aspect-[3/4] overflow-hidden bg-black mb-2">
-                    <img src={`${card.image}/low.webp`} alt={card.name} className="w-full h-full object-contain group-hover:scale-105 transition-all duration-500" loading="lazy" />
+                    <img 
+                      src={`${card.image}/low.webp`} 
+                      alt={card.name} 
+                      className="w-full h-full object-contain group-hover:scale-105 transition-all duration-500" 
+                      loading="lazy" 
+                      decoding="async"
+                    />
                   </div>
                   <div className="px-1 space-y-0.5">
                     <p className="text-[7px] font-black text-blue-500 uppercase">{card.id.split('-')[0]}</p>
@@ -308,12 +310,11 @@ export default function App() {
         </main>
       </div>
 
-      {/* FOOTER */}
       <footer className="bg-black border-t-4 border-red-600 py-16 px-6 relative z-10">
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-start gap-12">
           <div className="space-y-4 text-center lg:text-left w-full lg:w-auto">
             <div className="flex items-center justify-center lg:justify-start gap-3">
-              <img src="https://i.postimg.cc/SsfCGDqp/toppng-com-okemon-pokeball-game-go-icon-free-pokemon-go-979x979.png" className="w-8 h-8 object-contain" alt="Logo" />
+              <img src="https://i.postimg.cc/SsfCGDqp/toppng-com-okemon-pokeball-game-go-icon-free-pokemon-go-979x979.png" className="w-8 h-8 object-contain" alt="Logo" loading="lazy" />
               <h4 className="font-black italic text-xl md:text-2xl uppercase tracking-tighter">Poke<span className="text-[#ffcb05]">Album</span></h4>
             </div>
             <p className="text-slate-500 text-[9px] font-bold uppercase tracking-widest leading-loose mx-auto lg:mx-0 max-w-xs">
@@ -324,7 +325,7 @@ export default function App() {
 
           <div className="flex flex-col items-center justify-center space-y-4 border-y lg:border-y-0 lg:border-x border-white/5 py-8 lg:py-0 w-full lg:w-1/3">
             <span className="text-[8px] uppercase font-black tracking-[0.4em] text-red-500">Authorized by</span>
-            <img src="https://i.postimg.cc/Pq17zs7H/vikingo-sin-fondo-tex-blanco.png" className="h-16 md:h-20 object-contain brightness-75" alt="Juegos Vikingos" />
+            <img src="https://i.postimg.cc/Pq17zs7H/vikingo-sin-fondo-tex-blanco.png" className="h-16 md:h-20 object-contain brightness-75" alt="Juegos Vikingos" loading="lazy" />
           </div>
 
           <div className="flex flex-col items-center lg:items-end gap-1 font-mono w-full lg:w-auto">
@@ -337,19 +338,15 @@ export default function App() {
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@700&display=swap');
-        
         body { background-color: #0a0a0c; font-family: 'Archivo Black', sans-serif; }
         h1, h2, h3, h4, button { font-family: 'Archivo Black', sans-serif; letter-spacing: -0.04em; }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
-        
         @keyframes marquee {
           0% { transform: translateX(0); }
-          100% { transform: translateX(calc(-50% - 0.5rem)); }
+          100% { transform: translateX(calc(-50% - 1rem)); }
         }
-        
-        .animate-marquee { animation: marquee 30s linear infinite; }
-        @media (min-width: 768px) { .animate-marquee { animation-duration: 45s; } }
-
+        .animate-marquee { animation: marquee 40s linear infinite; }
+        .animate-marquee:hover { animation-play-state: paused; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #0a0a0c; }
         ::-webkit-scrollbar-thumb { background: #1f2937; }

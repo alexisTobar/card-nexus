@@ -1,12 +1,36 @@
 import React, { useState, useEffect } from 'react';
+// ... todos tus imports se mantienen igual ...
 import { db, auth } from '../lib/firebase';
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc, serverTimestamp, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { Search, Plus, Trash2, Share2, Loader2, Sparkles, X, Copy, Check, ExternalLink, MapPin, AlertCircle, MessageCircle, Languages, Hash, Layers, Edit3, FolderPlus, BookOpen, AlertTriangle, Minus, ShieldAlert } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 
+// --- NUEVO COMPONENTE DE OPTIMIZACIÓN (Agrégalo antes del Dashboard) ---
+const SafeImage = ({ src, alt, className }) => {
+  const [loaded, setLoaded] = useState(false);
+  // Optimizamos la URL: si viene de la API y no es webp, intentamos pedir la versión low
+  const optimizedSrc = src?.includes('tcgdex') && !src.includes('.webp') 
+    ? `${src}/low.webp` 
+    : src?.replace('/high.webp', '/low.webp');
+
+  return (
+    <div className={`relative w-full h-full bg-slate-800/50 rounded-lg overflow-hidden ${!loaded ? 'animate-pulse' : ''}`}>
+      <img
+        src={optimizedSrc}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        onLoad={() => setLoaded(true)}
+        className={`${className} transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+      />
+    </div>
+  );
+};
+
 export default function Dashboard() {
-  const { uid: urlUid } = useParams(); // Capturamos el UID de la URL si existe
+  // ... todos tus estados y efectos se mantienen EXACTAMENTE IGUAL ...
+  const { uid: urlUid } = useParams();
   const [myCards, setMyCards] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -15,43 +39,35 @@ export default function Dashboard() {
   const [copied, setCopied] = useState(false);
   const [profileUrl, setProfileUrl] = useState("");
   const navigate = useNavigate();
-
-  // Esta variable define si estamos viendo nuestro perfil o el de alguien más (Admin Mode)
   const isAdminView = urlUid && auth.currentUser?.uid !== urlUid;
   const targetUid = urlUid || auth.currentUser?.uid;
-
   const [albums, setAlbums] = useState([]);
   const [activeAlbum, setActiveAlbum] = useState(null);
   const [isCreatingAlbum, setIsCreatingAlbum] = useState(false);
   const [newAlbumName, setNewAlbumName] = useState("");
-
   const [whatsapp, setWhatsapp] = useState("");
   const [isSavingPhone, setIsSavingPhone] = useState(false);
-
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, id: null });
   const [selectedCard, setSelectedCard] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-
   const [cardDetails, setCardDetails] = useState({
     price: "", status: "Near Mint", language: "Inglés", quantity: 1, delivery: "", description: ""
   });
 
-  // Suscripción a autenticación mejorada
+  // ... (Toda tu lógica de useEffects, loadAlbums, createAlbum, etc., se mantiene igual hasta el renderizado) ...
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
         loadAlbums(targetUid); 
         loadUserProfile(targetUid); 
       } else if (!urlUid) {
-        // Si no hay usuario y no estamos viendo un perfil público, redirigir
         navigate('/');
       }
     });
     return () => unsubscribe();
   }, [navigate, targetUid, urlUid]);
 
-  // Actualizar URL de perfil compartible
   useEffect(() => {
     if (targetUid && activeAlbum) {
       setProfileUrl(`${window.location.origin}/perfil/${targetUid}?album=${activeAlbum.id}`);
@@ -66,7 +82,6 @@ export default function Dashboard() {
       const snap = await getDocs(q);
       const albumList = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setAlbums(albumList);
-      
       if (albumList.length > 0) {
         setActiveAlbum(albumList[0]);
         loadMyCollection(uid, albumList[0].id);
@@ -217,7 +232,7 @@ export default function Dashboard() {
           albumId: activeAlbum.id,
           userName: auth.currentUser.displayName || "Entrenador",
           name: selectedCard.name,
-          image: selectedCard.image.includes('high.webp') ? selectedCard.image : `${selectedCard.image}/high.webp`,
+          image: selectedCard.image, // Guardamos la base sin /high para flexibilidad
           currency: "CLP",
           createdAt: serverTimestamp()
         });
@@ -257,7 +272,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-[#020617] text-white font-sans bg-fixed bg-cover"
       style={{ backgroundImage: "linear-gradient(to bottom, rgba(2, 6, 23, 0.9), rgba(2, 6, 23, 0.98)), url('https://i.postimg.cc/DZ8X3nKw/pokemon-card-pictures-7g0mrmm3f22v4c2l.jpg')" }}>
       
-      {/* INDICADOR DE MODO ADMIN */}
+      {/* ... (Header y demás secciones se mantienen igual) ... */}
       {isAdminView && (
         <div className="bg-red-600 text-white text-[10px] font-black uppercase py-2 text-center sticky top-0 z-[100] flex items-center justify-center gap-2">
           <ShieldAlert size={14} /> Estás visualizando el perfil del usuario: {targetUid} (MODO LECTURA)
@@ -286,7 +301,7 @@ export default function Dashboard() {
 
       <main className="max-w-[1200px] mx-auto p-4 md:p-8 space-y-10">
         
-        {/* WHATSAPP CONFIG (SOLO DUEÑO) */}
+        {/* ... (Sección WhatsApp y Álbumes igual) ... */}
         {!isAdminView && (
           <section className="bg-blue-900/10 border border-blue-500/30 rounded-[2rem] p-6 flex flex-col md:flex-row items-center gap-4">
             <div className="flex-1">
@@ -314,7 +329,6 @@ export default function Dashboard() {
           </section>
         )}
 
-        {/* ALBUMS SELECTOR */}
         <section>
           <div className="flex items-center justify-between mb-6">
              <h3 className="text-xs font-black uppercase text-slate-400 flex items-center gap-2">
@@ -359,7 +373,7 @@ export default function Dashboard() {
           )}
         </section>
 
-        {/* SHARE PANEL */}
+        {/* ... (Share Panel igual) ... */}
         {activeAlbum && (
             <section className="bg-slate-900/80 border border-white/10 rounded-[2.5rem] p-8 flex flex-col md:flex-row items-center gap-8 backdrop-blur-sm">
                 <div className="bg-white p-3 rounded-3xl shadow-[0_0_30px_rgba(255,255,255,0.1)]">
@@ -379,7 +393,7 @@ export default function Dashboard() {
             </section>
         )}
 
-        {/* SEARCH & ADD SECTION (SOLO DUEÑO) */}
+        {/* --- OPTIMIZACIÓN EN BÚSQUEDA --- */}
         {!isAdminView && (
           <section className="space-y-6">
             <div className="relative max-w-2xl mx-auto group">
@@ -400,7 +414,6 @@ export default function Dashboard() {
                   <X size={18} className="text-slate-400" />
                 </button>
               )}
-
               {isSearching && <Loader2 className="absolute right-14 top-1/2 -translate-y-1/2 animate-spin text-yellow-500" size={20} />}
             </div>
 
@@ -411,21 +424,22 @@ export default function Dashboard() {
                     <div 
                         key={card.id} 
                         onClick={() => openAddModal(card)} 
-                        className="relative cursor-pointer hover:scale-105 active:scale-95 transition-all group"
+                        className="relative cursor-pointer hover:scale-105 active:scale-95 transition-all group aspect-[2/3]"
                     >
-                      <img src={`${card.image}/low.webp`} className="rounded-xl border-2 border-transparent group-hover:border-yellow-500 shadow-lg" alt={card.name} />
+                      {/* Usamos el nuevo SafeImage */}
+                      <SafeImage 
+                        src={card.image} 
+                        alt={card.name} 
+                        className="rounded-xl border-2 border-transparent group-hover:border-yellow-500 shadow-lg object-contain w-full h-full" 
+                      />
                       <div className="absolute inset-0 bg-yellow-500/20 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center">
                         <Plus className="text-white drop-shadow-md" size={32} />
                       </div>
                     </div>
                   ))}
                 </div>
-                
                 <div className="flex justify-center">
-                   <button 
-                    onClick={clearSearch}
-                    className="bg-white/5 border border-white/10 px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600/20 hover:border-red-500/50 transition-all flex items-center gap-2 text-slate-400 hover:text-red-500"
-                   >
+                   <button onClick={clearSearch} className="bg-white/5 border border-white/10 px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600/20 hover:border-red-500/50 transition-all flex items-center gap-2 text-slate-400 hover:text-red-500">
                      <X size={14} /> Cerrar Resultados
                    </button>
                 </div>
@@ -434,7 +448,7 @@ export default function Dashboard() {
           </section>
         )}
 
-        {/* MY COLLECTION GRID */}
+        {/* --- OPTIMIZACIÓN EN MI COLECCIÓN --- */}
         <section className="pt-10 border-t border-white/5">
           <div className="flex items-end justify-between mb-8">
             <div>
@@ -455,7 +469,12 @@ export default function Dashboard() {
                 {myCards.map(card => (
                 <div key={card.id} className="bg-slate-900/40 border border-white/10 rounded-[1.5rem] overflow-hidden group hover:border-yellow-500/50 transition-all hover:shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
                     <div className="relative aspect-[2/3] p-2">
-                    <img src={card.image} className="w-full h-full object-contain rounded-lg" alt={card.name} />
+                      {/* Usamos SafeImage aquí también */}
+                      <SafeImage 
+                        src={card.image} 
+                        alt={card.name} 
+                        className="w-full h-full object-contain rounded-lg" 
+                      />
                     
                     <div className="absolute bottom-4 right-4 bg-yellow-500 text-black font-black px-3 py-1 rounded-xl text-[12px] shadow-2xl border border-black/10 z-10">
                         x{card.quantity || 1}
@@ -494,8 +513,8 @@ export default function Dashboard() {
           )}
         </section>
       </main>
-
-      {/* MODAL: ADD / EDIT CARD */}
+      
+      {/* ... (Modales se mantienen EXACTAMENTE IGUAL) ... */}
       {selectedCard && !isAdminView && (
         <div className="fixed inset-0 z-[150] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-slate-900 border-2 border-yellow-500 w-full max-w-md rounded-[2.5rem] p-8 space-y-6 shadow-[0_0_50px_rgba(234,179,8,0.2)] animate-in zoom-in duration-300">
@@ -544,7 +563,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* DELETE MODAL */}
       {deleteConfirm.show && !isAdminView && (
         <div className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-4 backdrop-blur-md">
           <div className="bg-slate-900 border border-red-500/50 p-10 rounded-[3rem] text-center max-w-xs w-full shadow-[0_0_50px_rgba(239,68,68,0.2)] animate-in slide-in-from-bottom-4">
