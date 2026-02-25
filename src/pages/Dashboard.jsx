@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
-// ... todos tus imports se mantienen igual ...
 import { db, auth } from '../lib/firebase';
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc, serverTimestamp, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { Search, Plus, Trash2, Share2, Loader2, Sparkles, X, Copy, Check, ExternalLink, MapPin, AlertCircle, MessageCircle, Languages, Hash, Layers, Edit3, FolderPlus, BookOpen, AlertTriangle, Minus, ShieldAlert } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 
-// --- NUEVO COMPONENTE DE OPTIMIZACIÓN (Agrégalo antes del Dashboard) ---
+// --- COMPONENTE DE IMAGEN OPTIMIZADA ---
 const SafeImage = ({ src, alt, className }) => {
   const [loaded, setLoaded] = useState(false);
-  // Optimizamos la URL: si viene de la API y no es webp, intentamos pedir la versión low
   const optimizedSrc = src?.includes('tcgdex') && !src.includes('.webp') 
     ? `${src}/low.webp` 
     : src?.replace('/high.webp', '/low.webp');
@@ -29,7 +27,7 @@ const SafeImage = ({ src, alt, className }) => {
 };
 
 export default function Dashboard() {
-  // ... todos tus estados y efectos se mantienen EXACTAMENTE IGUAL ...
+  // --- TUS ESTADOS (MANTENIDOS EXACTAMENTE IGUAL) ---
   const { uid: urlUid } = useParams();
   const [myCards, setMyCards] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -55,7 +53,7 @@ export default function Dashboard() {
     price: "", status: "Near Mint", language: "Inglés", quantity: 1, delivery: "", description: ""
   });
 
-  // ... (Toda tu lógica de useEffects, loadAlbums, createAlbum, etc., se mantiene igual hasta el renderizado) ...
+  // --- TU LÓGICA (MANTENIDA EXACTAMENTE IGUAL) ---
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
@@ -232,7 +230,7 @@ export default function Dashboard() {
           albumId: activeAlbum.id,
           userName: auth.currentUser.displayName || "Entrenador",
           name: selectedCard.name,
-          image: selectedCard.image, // Guardamos la base sin /high para flexibilidad
+          image: selectedCard.image,
           currency: "CLP",
           createdAt: serverTimestamp()
         });
@@ -264,315 +262,287 @@ export default function Dashboard() {
   const copyToClipboard = () => {
     navigator.clipboard.writeText(profileUrl);
     setCopied(true);
-    showToast("Link copiado al portapapeles");
+    showToast("Link copiado");
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white font-sans bg-fixed bg-cover"
-      style={{ backgroundImage: "linear-gradient(to bottom, rgba(2, 6, 23, 0.9), rgba(2, 6, 23, 0.98)), url('https://i.postimg.cc/DZ8X3nKw/pokemon-card-pictures-7g0mrmm3f22v4c2l.jpg')" }}>
+    <div className="min-h-screen bg-[#020617] text-white font-sans bg-fixed bg-cover overflow-x-hidden"
+      style={{ backgroundImage: "linear-gradient(to bottom, rgba(2, 6, 23, 0.94), rgba(2, 6, 23, 0.98)), url('https://i.postimg.cc/DZ8X3nKw/pokemon-card-pictures-7g0mrmm3f22v4c2l.jpg')" }}>
       
-      {/* ... (Header y demás secciones se mantienen igual) ... */}
+      {/* HEADER OPTIMIZADO: Sticky y compacto */}
       {isAdminView && (
-        <div className="bg-red-600 text-white text-[10px] font-black uppercase py-2 text-center sticky top-0 z-[100] flex items-center justify-center gap-2">
-          <ShieldAlert size={14} /> Estás visualizando el perfil del usuario: {targetUid} (MODO LECTURA)
+        <div className="bg-red-600 text-white text-[9px] font-black uppercase py-1.5 text-center sticky top-0 z-[110] flex items-center justify-center gap-2 px-4 leading-tight">
+          <ShieldAlert size={12} /> Modo Lectura: {targetUid.substring(0,8)}...
         </div>
       )}
 
+      {/* TOAST ADAPTATIVO */}
       {toast.show && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-sm">
-          <div className={`${toast.type === 'success' ? 'bg-yellow-500 text-black' : 'bg-red-600 text-white'} px-6 py-4 rounded-2xl font-black uppercase text-xs flex items-center gap-3 shadow-2xl animate-in fade-in zoom-in duration-300`}>
-            {toast.type === 'success' ? <Sparkles size={18} /> : <AlertCircle size={18} />}
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[200] w-[92%] max-w-sm pointer-events-none">
+          <div className={`${toast.type === 'success' ? 'bg-yellow-500 text-black' : 'bg-red-600 text-white'} px-4 py-3 rounded-2xl font-black uppercase text-[10px] flex items-center justify-center gap-3 shadow-2xl animate-in slide-in-from-top-4 duration-300`}>
+            {toast.type === 'success' ? <Sparkles size={16} /> : <AlertCircle size={16} />}
             {toast.message}
           </div>
         </div>
       )}
 
-      <header className={`p-4 md:p-6 border-b border-white/5 bg-slate-950/80 backdrop-blur-xl sticky ${isAdminView ? 'top-8' : 'top-0'} z-50 flex justify-between items-center`}>
-        <h2 className="text-2xl font-black italic tracking-tighter cursor-pointer" onClick={() => navigate('/')}>
+      <header className={`p-4 border-b border-white/5 bg-slate-950/80 backdrop-blur-xl sticky ${isAdminView ? 'top-6' : 'top-0'} z-50 flex justify-between items-center transition-all`}>
+        <h2 className="text-xl font-black italic tracking-tighter cursor-pointer" onClick={() => navigate('/')}>
           POKE<span className="text-yellow-400">ALBUM</span>
         </h2>
-        <div className="flex gap-2">
-            <button onClick={() => window.open(profileUrl, '_blank')} className="bg-white/5 p-3 rounded-2xl border border-white/10 text-yellow-400 hover:bg-yellow-500 hover:text-black transition-colors">
-              <ExternalLink size={20} />
-            </button>
-        </div>
+        <button onClick={() => window.open(profileUrl, '_blank')} className="bg-white/5 p-2.5 rounded-xl border border-white/10 text-yellow-400 active:scale-90 transition-all">
+          <ExternalLink size={18} />
+        </button>
       </header>
 
-      <main className="max-w-[1200px] mx-auto p-4 md:p-8 space-y-10">
+      <main className="max-w-[1200px] mx-auto p-4 md:p-8 space-y-8">
         
-        {/* ... (Sección WhatsApp y Álbumes igual) ... */}
+        {/* WHATSAPP: Compacto en movil */}
         {!isAdminView && (
-          <section className="bg-blue-900/10 border border-blue-500/30 rounded-[2rem] p-6 flex flex-col md:flex-row items-center gap-4">
-            <div className="flex-1">
-              <h4 className="font-black uppercase text-sm flex items-center gap-2 text-blue-400">
-                <MessageCircle size={18}/> Contacto WhatsApp
+          <section className="bg-blue-900/10 border border-blue-500/20 rounded-3xl p-5 flex flex-col gap-4">
+            <div>
+              <h4 className="font-black uppercase text-xs flex items-center gap-2 text-blue-400">
+                <MessageCircle size={16}/> Tu WhatsApp
               </h4>
-              <p className="text-slate-400 text-[10px] uppercase tracking-widest mt-1">Tus compradores te escribirán directamente aquí</p>
+              <p className="text-slate-500 text-[9px] uppercase tracking-wider mt-1">Para recibir ofertas de compradores</p>
             </div>
-            <div className="flex w-full md:w-auto gap-2">
+            <div className="flex gap-2">
               <input 
-                  type="text" 
+                  type="tel" 
                   value={whatsapp} 
                   onChange={(e) => setWhatsapp(e.target.value)} 
                   placeholder="Ej: 56912345678" 
-                  className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-blue-500 min-w-[200px]" 
+                  className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-blue-500 min-w-0" 
               />
               <button 
                   onClick={saveWhatsapp} 
                   disabled={isSavingPhone}
-                  className="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-xl font-black text-[10px] uppercase disabled:opacity-50 transition-all"
+                  className="bg-blue-600 active:scale-95 px-5 py-3 rounded-xl font-black text-[10px] uppercase disabled:opacity-50 transition-all shrink-0"
               >
-                  {isSavingPhone ? <Loader2 className="animate-spin" size={16}/> : 'Vincular'}
+                  {isSavingPhone ? <Loader2 className="animate-spin" size={14}/> : 'OK'}
               </button>
             </div>
           </section>
         )}
 
+        {/* ÁLBUMES: Scroll horizontal mejorado */}
         <section>
-          <div className="flex items-center justify-between mb-6">
-             <h3 className="text-xs font-black uppercase text-slate-400 flex items-center gap-2">
-                <Layers size={16} className="text-yellow-500" /> Álbumes de este Usuario
+          <div className="flex items-center justify-between mb-4 px-1">
+             <h3 className="text-[10px] font-black uppercase text-slate-400 flex items-center gap-2">
+                <Layers size={14} className="text-yellow-500" /> Mis Álbumes
              </h3>
              {!isAdminView && (
-               <button onClick={() => setIsCreatingAlbum(true)} className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 transition-transform active:scale-95">
-                 <Plus size={14} /> Nuevo Álbum
+               <button onClick={() => setIsCreatingAlbum(true)} className="bg-yellow-500 text-black px-3 py-1.5 rounded-lg text-[9px] font-black uppercase flex items-center gap-1.5 active:scale-95">
+                 <Plus size={12} /> Nuevo
                </button>
              )}
           </div>
           
-          <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
-            {albums.length === 0 && !loading && (
-                <div className="text-slate-600 text-[10px] uppercase font-bold p-4 border border-dashed border-white/10 rounded-2xl w-full text-center">
-                    Este usuario no tiene álbumes creados.
-                </div>
-            )}
+          <div className="flex gap-2.5 overflow-x-auto pb-4 scrollbar-hide px-1 snap-x">
             {albums.map(album => (
               <button 
                 key={album.id} 
                 onClick={() => { setActiveAlbum(album); loadMyCollection(targetUid, album.id); }} 
-                className={`flex-shrink-0 px-6 py-4 rounded-2xl border-2 font-black text-[11px] uppercase transition-all flex items-center gap-3 ${activeAlbum?.id === album.id ? "bg-yellow-500 border-yellow-400 text-black shadow-[0_0_20px_rgba(234,179,8,0.3)]" : "bg-slate-900 border-white/5 text-slate-500 hover:border-white/20"}`}
+                className={`flex-shrink-0 px-5 py-3.5 rounded-2xl border-2 font-black text-[10px] uppercase transition-all flex items-center gap-2 snap-start ${activeAlbum?.id === album.id ? "bg-yellow-500 border-yellow-400 text-black" : "bg-slate-900 border-white/5 text-slate-500"}`}
               >
-                <BookOpen size={16} /> {album.name}
+                <BookOpen size={14} /> {album.name}
               </button>
             ))}
           </div>
 
           {isCreatingAlbum && (
-            <div className="mt-4 flex gap-2 animate-in slide-in-from-top-2 duration-300">
+            <div className="mt-2 flex gap-2 animate-in fade-in slide-in-from-top-2">
               <input 
                 autoFocus
                 value={newAlbumName} 
                 onChange={(e) => setNewAlbumName(e.target.value)} 
-                placeholder="NOMBRE DEL ÁLBUM..." 
-                className="bg-black/60 border border-yellow-500/50 rounded-xl px-4 py-2 text-xs font-bold flex-1 md:max-w-xs" 
+                placeholder="NOMBRE..." 
+                className="bg-black/60 border border-yellow-500/50 rounded-xl px-4 py-2 text-xs font-bold flex-1" 
               />
-              <button onClick={createAlbum} className="bg-green-600 hover:bg-green-500 p-3 rounded-xl"><Check size={18}/></button>
-              <button onClick={() => setIsCreatingAlbum(false)} className="bg-white/10 hover:bg-red-600 p-3 rounded-xl transition-colors"><X size={18}/></button>
+              <button onClick={createAlbum} className="bg-green-600 p-3 rounded-xl"><Check size={18}/></button>
+              <button onClick={() => setIsCreatingAlbum(false)} className="bg-white/10 p-3 rounded-xl"><X size={18}/></button>
             </div>
           )}
         </section>
 
-        {/* ... (Share Panel igual) ... */}
+        {/* SHARE PANEL: QR responsivo */}
         {activeAlbum && (
-            <section className="bg-slate-900/80 border border-white/10 rounded-[2.5rem] p-8 flex flex-col md:flex-row items-center gap-8 backdrop-blur-sm">
-                <div className="bg-white p-3 rounded-3xl shadow-[0_0_30px_rgba(255,255,255,0.1)]">
-                    {profileUrl && <QRCodeSVG value={profileUrl} size={100} level="H" />}
+            <section className="bg-slate-900/60 border border-white/10 rounded-[2rem] p-6 flex flex-row items-center gap-5 backdrop-blur-sm">
+                <div className="bg-white p-2 rounded-2xl shrink-0">
+                    {profileUrl && <QRCodeSVG value={profileUrl} size={60} level="H" />}
                 </div>
-                <div className="flex-1 text-center md:text-left space-y-4">
-                    <div>
-                        <span className="text-yellow-500 text-[10px] font-black uppercase tracking-[0.2em]">Link del Álbum</span>
-                        <h3 className="text-2xl font-black uppercase mt-1">{activeAlbum?.name}</h3>
+                <div className="flex-1 space-y-2 min-w-0">
+                    <div className="truncate">
+                        <span className="text-yellow-500 text-[8px] font-black uppercase tracking-widest">Link Compartible</span>
+                        <h3 className="text-lg font-black uppercase leading-none truncate">{activeAlbum?.name}</h3>
                     </div>
-                    <div className="flex flex-wrap gap-3 justify-center md:justify-start">
-                        <button onClick={copyToClipboard} className="bg-white text-black px-6 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-yellow-500 transition-colors">
-                            {copied ? <Check size={14}/> : <Copy size={14}/>} {copied ? 'Copiado' : 'Copiar Link'}
-                        </button>
-                    </div>
+                    <button onClick={copyToClipboard} className="w-full bg-white text-black py-2.5 rounded-xl font-black text-[9px] uppercase flex items-center justify-center gap-2 active:bg-yellow-500 transition-colors">
+                        {copied ? <Check size={12}/> : <Copy size={12}/>} {copied ? 'Copiado' : 'Copiar'}
+                    </button>
                 </div>
             </section>
         )}
 
-        {/* --- OPTIMIZACIÓN EN BÚSQUEDA --- */}
+        {/* BUSCADOR: Altura tactil y feedback */}
         {!isAdminView && (
-          <section className="space-y-6">
-            <div className="relative max-w-2xl mx-auto group">
+          <section className="space-y-4">
+            <div className="relative group">
               <input 
                   disabled={!activeAlbum}
                   value={searchQuery} 
                   onChange={(e) => setSearchQuery(e.target.value)} 
-                  className="w-full bg-slate-900/50 border-2 border-white/10 rounded-[2rem] py-5 pl-14 pr-14 font-bold outline-none focus:border-yellow-500 focus:bg-slate-900 transition-all disabled:opacity-50 text-sm md:text-base" 
-                  placeholder={activeAlbum ? "Buscar Pokémon para añadir..." : "Crea un álbum primero para buscar"} 
+                  className="w-full bg-slate-900/50 border-2 border-white/10 rounded-2xl py-4 pl-12 pr-12 font-bold outline-none focus:border-yellow-500 transition-all text-sm" 
+                  placeholder={activeAlbum ? "Buscar carta..." : "Crea un álbum primero"} 
               />
-              <Search className={`absolute left-5 top-1/2 -translate-y-1/2 transition-colors ${searchQuery ? 'text-yellow-500' : 'text-slate-600'}`} size={24} />
+              <Search className={`absolute left-4 top-1/2 -translate-y-1/2 ${searchQuery ? 'text-yellow-500' : 'text-slate-600'}`} size={20} />
               
               {searchQuery && (
-                <button 
-                  onClick={clearSearch}
-                  className="absolute right-5 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 p-2 rounded-full transition-colors"
-                >
-                  <X size={18} className="text-slate-400" />
+                <button onClick={clearSearch} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 p-1.5 rounded-full">
+                  <X size={14} className="text-slate-400" />
                 </button>
               )}
-              {isSearching && <Loader2 className="absolute right-14 top-1/2 -translate-y-1/2 animate-spin text-yellow-500" size={20} />}
             </div>
 
             {results.length > 0 && (
-              <div className="space-y-4 animate-in fade-in duration-500">
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 p-4 bg-white/5 rounded-[2rem] border border-white/5 shadow-inner">
+              <div className="space-y-4 animate-in fade-in duration-300">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 p-3 bg-white/5 rounded-2xl border border-white/5">
                   {results.map(card => (
-                    <div 
-                        key={card.id} 
-                        onClick={() => openAddModal(card)} 
-                        className="relative cursor-pointer hover:scale-105 active:scale-95 transition-all group aspect-[2/3]"
-                    >
-                      {/* Usamos el nuevo SafeImage */}
-                      <SafeImage 
-                        src={card.image} 
-                        alt={card.name} 
-                        className="rounded-xl border-2 border-transparent group-hover:border-yellow-500 shadow-lg object-contain w-full h-full" 
-                      />
-                      <div className="absolute inset-0 bg-yellow-500/20 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center">
-                        <Plus className="text-white drop-shadow-md" size={32} />
+                    <div key={card.id} onClick={() => openAddModal(card)} className="relative active:scale-95 transition-all aspect-[2/3]">
+                      <SafeImage src={card.image} alt={card.name} className="rounded-lg shadow-md object-contain w-full h-full" />
+                      <div className="absolute inset-0 bg-yellow-500/20 rounded-lg flex items-center justify-center">
+                        <Plus className="text-white drop-shadow-md" size={24} />
                       </div>
                     </div>
                   ))}
                 </div>
-                <div className="flex justify-center">
-                   <button onClick={clearSearch} className="bg-white/5 border border-white/10 px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600/20 hover:border-red-500/50 transition-all flex items-center gap-2 text-slate-400 hover:text-red-500">
-                     <X size={14} /> Cerrar Resultados
-                   </button>
-                </div>
+                <button onClick={clearSearch} className="w-full py-3 text-[9px] font-black uppercase text-slate-500 border border-white/5 rounded-xl">Cerrar resultados</button>
               </div>
             )}
           </section>
         )}
 
-        {/* --- OPTIMIZACIÓN EN MI COLECCIÓN --- */}
-        <section className="pt-10 border-t border-white/5">
-          <div className="flex items-end justify-between mb-8">
-            <div>
-                <h3 className="text-3xl font-black uppercase italic tracking-tighter">
-                    {activeAlbum?.name || 'Colección'}
-                </h3>
-                <p className="text-slate-500 font-bold text-xs uppercase tracking-widest">{myCards.length} Cartas en este álbum</p>
-            </div>
+        {/* MI COLECCIÓN: Grid de 2 columnas en movil */}
+        <section className="pt-6 border-t border-white/5">
+          <div className="mb-6 px-1">
+            <h3 className="text-2xl font-black uppercase italic tracking-tighter leading-none">
+              {activeAlbum?.name || 'Álbum'}
+            </h3>
+            <p className="text-slate-500 font-bold text-[9px] uppercase tracking-widest mt-1">{myCards.length} cartas guardadas</p>
           </div>
 
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-600">
-                <Loader2 className="animate-spin mb-4" size={40} />
-                <p className="font-black uppercase text-xs">Accediendo a la base de datos...</p>
+            <div className="flex flex-col items-center py-20 text-slate-600">
+                <Loader2 className="animate-spin mb-3" size={30} />
+                <p className="font-black uppercase text-[9px]">Cargando...</p>
             </div>
           ) : myCards.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-6">
                 {myCards.map(card => (
-                <div key={card.id} className="bg-slate-900/40 border border-white/10 rounded-[1.5rem] overflow-hidden group hover:border-yellow-500/50 transition-all hover:shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
-                    <div className="relative aspect-[2/3] p-2">
-                      {/* Usamos SafeImage aquí también */}
-                      <SafeImage 
-                        src={card.image} 
-                        alt={card.name} 
-                        className="w-full h-full object-contain rounded-lg" 
-                      />
-                    
-                    <div className="absolute bottom-4 right-4 bg-yellow-500 text-black font-black px-3 py-1 rounded-xl text-[12px] shadow-2xl border border-black/10 z-10">
-                        x{card.quantity || 1}
-                    </div>
-
-                    {!isAdminView && (
-                      <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
-                          <button onClick={() => openEditModal(card)} className="bg-yellow-500 p-2.5 rounded-xl text-black shadow-xl hover:scale-110 transition-transform">
-                              <Edit3 size={16} />
-                          </button>
-                          <button onClick={() => setDeleteConfirm({ show: true, id: card.id })} className="bg-red-600 p-2.5 rounded-xl text-white shadow-xl hover:scale-110 transition-transform">
-                              <Trash2 size={16} />
-                          </button>
+                <div key={card.id} className="bg-slate-900/40 border border-white/10 rounded-2xl overflow-hidden flex flex-col">
+                    <div className="relative aspect-[2/3] p-1.5">
+                      <SafeImage src={card.image} alt={card.name} className="w-full h-full object-contain rounded-lg" />
+                      <div className="absolute bottom-3 right-3 bg-yellow-500 text-black font-black px-2 py-0.5 rounded-lg text-[10px] shadow-xl z-10 border border-black/10">
+                          x{card.quantity || 1}
                       </div>
-                    )}
+
+                      {!isAdminView && (
+                        <div className="absolute top-3 right-3 flex flex-col gap-1.5">
+                            <button onClick={() => openEditModal(card)} className="bg-yellow-500 p-2 rounded-lg text-black shadow-lg active:scale-90">
+                                <Edit3 size={14} />
+                            </button>
+                            <button onClick={() => setDeleteConfirm({ show: true, id: card.id })} className="bg-red-600 p-2 rounded-lg text-white shadow-lg active:scale-90">
+                                <Trash2 size={14} />
+                            </button>
+                        </div>
+                      )}
                     </div>
-                    <div className="p-4 bg-slate-950/50">
-                    <div className="text-xl font-black text-yellow-400 leading-none">${Number(card.price).toLocaleString('es-CL')}</div>
-                    <div className="text-[9px] font-bold text-slate-500 uppercase mt-2 truncate">{card.name}</div>
-                    <div className="flex gap-1 mt-1">
-                        <span className="text-[7px] bg-white/5 px-1.5 py-0.5 rounded border border-white/10 text-slate-400 uppercase font-bold">{card.status}</span>
-                        <span className="text-[7px] bg-white/5 px-1.5 py-0.5 rounded border border-white/10 text-slate-400 uppercase font-bold">{card.language}</span>
-                    </div>
+                    <div className="p-3 bg-slate-950/50 flex-1 flex flex-col justify-between">
+                      <div className="text-sm font-black text-yellow-400">${Number(card.price).toLocaleString('es-CL')}</div>
+                      <div className="text-[8px] font-bold text-slate-500 uppercase mt-1 truncate">{card.name}</div>
+                      <div className="flex gap-1 mt-1.5 overflow-hidden">
+                          <span className="text-[6px] bg-white/5 px-1 py-0.5 rounded text-slate-400 uppercase font-black whitespace-nowrap">{card.status}</span>
+                      </div>
                     </div>
                 </div>
                 ))}
             </div>
           ) : (
-            <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-[3rem]">
-                <div className="bg-white/5 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <AlertTriangle className="text-slate-700" size={32} />
-                </div>
-                <h4 className="font-black uppercase text-slate-500">Álbum vacío</h4>
-                <p className="text-slate-600 text-[10px] uppercase font-bold mt-1">Este usuario no tiene cartas en este álbum.</p>
+            <div className="py-16 text-center border-2 border-dashed border-white/5 rounded-[2rem] px-6">
+                <AlertTriangle className="text-slate-800 mx-auto mb-3" size={30} />
+                <h4 className="font-black uppercase text-slate-600 text-[10px]">Sin cartas aún</h4>
             </div>
           )}
         </section>
       </main>
-      
-      {/* ... (Modales se mantienen EXACTAMENTE IGUAL) ... */}
+
+      {/* MODAL EDICION: Scroll interno y botones grandes */}
       {selectedCard && !isAdminView && (
-        <div className="fixed inset-0 z-[150] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border-2 border-yellow-500 w-full max-w-md rounded-[2.5rem] p-8 space-y-6 shadow-[0_0_50px_rgba(234,179,8,0.2)] animate-in zoom-in duration-300">
-            <div className="text-center">
-                <h3 className="text-2xl font-black uppercase italic tracking-tighter">{isEditing ? 'Editar Carta' : 'Añadir Carta'}</h3>
-                <p className="text-yellow-500 font-bold text-[10px] uppercase tracking-widest">{selectedCard.name}</p>
+        <div className="fixed inset-0 z-[150] bg-black/95 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-slate-900 border-t-2 sm:border-2 border-yellow-500 w-full max-w-md rounded-t-[2rem] sm:rounded-[2.5rem] p-6 space-y-5 shadow-2xl animate-in slide-in-from-bottom-10 duration-300 max-h-[90vh] overflow-y-auto">
+            <div className="text-center sticky top-0 bg-slate-900 pb-2 z-10">
+                <div className="w-12 h-1 bg-white/10 rounded-full mx-auto mb-4 sm:hidden" />
+                <h3 className="text-xl font-black uppercase italic">{isEditing ? 'Editar Carta' : 'Añadir Carta'}</h3>
+                <p className="text-yellow-500 font-bold text-[9px] uppercase tracking-widest">{selectedCard.name}</p>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2 bg-black/40 border border-white/10 rounded-2xl p-4">
-                <label className="text-[10px] font-black uppercase text-slate-500 mb-2 block text-center">Cantidad de copias (Stock)</label>
-                <div className="flex items-center justify-center gap-6">
-                    <button onClick={() => setCardDetails(prev => ({...prev, quantity: Math.max(1, prev.quantity - 1)}))} className="bg-white/5 hover:bg-white/10 p-3 rounded-xl transition-colors"><Minus size={20} /></button>
-                    <span className="text-3xl font-black text-white w-12 text-center">{cardDetails.quantity}</span>
-                    <button onClick={() => setCardDetails(prev => ({...prev, quantity: prev.quantity + 1}))} className="bg-yellow-500 text-black p-3 rounded-xl hover:bg-yellow-400 transition-colors"><Plus size={20} /></button>
+            <div className="space-y-4 pb-4">
+              <div className="bg-black/40 border border-white/10 rounded-2xl p-4">
+                <label className="text-[9px] font-black uppercase text-slate-500 mb-2 block text-center">Stock disponible</label>
+                <div className="flex items-center justify-center gap-8">
+                    <button onClick={() => setCardDetails(prev => ({...prev, quantity: Math.max(1, prev.quantity - 1)}))} className="bg-white/5 p-4 rounded-xl active:bg-white/10"><Minus size={20} /></button>
+                    <span className="text-3xl font-black text-white w-10 text-center">{cardDetails.quantity}</span>
+                    <button onClick={() => setCardDetails(prev => ({...prev, quantity: prev.quantity + 1}))} className="bg-yellow-500 text-black p-4 rounded-xl active:scale-95"><Plus size={20} /></button>
                 </div>
               </div>
-              <div className="col-span-2">
-                <label className="text-[10px] font-black uppercase text-slate-500 ml-2 mb-1 block">Precio Unitario (CLP)</label>
-                <input type="number" value={cardDetails.price} onChange={(e) => setCardDetails({...cardDetails, price: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 font-black text-yellow-400 text-xl outline-none focus:border-yellow-500" placeholder="0" />
-              </div>
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-500 ml-2 mb-1 block">Estado</label>
-                <select value={cardDetails.status} onChange={(e) => setCardDetails({...cardDetails, status: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-xs font-bold outline-none">
-                  <option>Near Mint</option><option>Lightly Played</option><option>Played</option><option>Damaged</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] font-black uppercase text-slate-500 ml-2 mb-1 block">Idioma</label>
-                <select value={cardDetails.language} onChange={(e) => setCardDetails({...cardDetails, language: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-xs font-bold outline-none">
-                  <option>Inglés</option><option>Español</option><option>Japonés</option>
-                </select>
-              </div>
-              <div className="col-span-2">
-                <label className="text-[10px] font-black uppercase text-slate-500 ml-2 mb-1 block">Método de entrega / Ciudad</label>
-                <input type="text" value={cardDetails.delivery} onChange={(e) => setCardDetails({...cardDetails, delivery: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-xs font-bold outline-none" placeholder="Ej: Metro La Moneda / Envíos a todo Chile" />
+
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block">Precio Unitario (CLP)</label>
+                  <input type="number" inputMode="numeric" value={cardDetails.price} onChange={(e) => setCardDetails({...cardDetails, price: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-xl p-4 font-black text-yellow-400 text-xl outline-none" placeholder="0" />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block">Estado</label>
+                    <select value={cardDetails.status} onChange={(e) => setCardDetails({...cardDetails, status: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-[10px] font-bold outline-none appearance-none">
+                      <option>Near Mint</option><option>Lightly Played</option><option>Played</option><option>Damaged</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block">Idioma</label>
+                    <select value={cardDetails.language} onChange={(e) => setCardDetails({...cardDetails, language: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-xl p-3.5 text-[10px] font-bold outline-none appearance-none">
+                      <option>Inglés</option><option>Español</option><option>Japonés</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[9px] font-black uppercase text-slate-500 ml-2 mb-1 block">Entrega / Ciudad</label>
+                  <input type="text" value={cardDetails.delivery} onChange={(e) => setCardDetails({...cardDetails, delivery: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-xs font-bold outline-none" placeholder="Ej: Santiago / Metro" />
+                </div>
               </div>
             </div>
+
             <div className="space-y-3 pt-2">
-                <button onClick={saveCardToFirestore} className="w-full bg-yellow-500 hover:bg-yellow-400 text-black py-5 rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-yellow-500/20 transition-all active:scale-95">
-                    {isEditing ? 'Guardar Cambios' : 'Confirmar y Añadir'}
+                <button onClick={saveCardToFirestore} className="w-full bg-yellow-500 text-black py-4.5 rounded-2xl font-black uppercase text-xs tracking-widest active:scale-95 transition-all">
+                    {isEditing ? 'Guardar Cambios' : 'Confirmar'}
                 </button>
-                <button onClick={() => setSelectedCard(null)} className="w-full text-slate-500 hover:text-white font-bold text-[10px] uppercase tracking-widest transition-colors">Cancelar</button>
+                <button onClick={() => setSelectedCard(null)} className="w-full text-slate-500 py-2 font-black text-[9px] uppercase">Cerrar</button>
             </div>
           </div>
         </div>
       )}
 
+      {/* CONFIRMAR BORRADO: Minimalista movil */}
       {deleteConfirm.show && !isAdminView && (
-        <div className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-4 backdrop-blur-md">
-          <div className="bg-slate-900 border border-red-500/50 p-10 rounded-[3rem] text-center max-w-xs w-full shadow-[0_0_50px_rgba(239,68,68,0.2)] animate-in slide-in-from-bottom-4">
-            <div className="bg-red-500/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Trash2 className="text-red-500" size={32} />
-            </div>
-            <h4 className="font-black uppercase mb-2">¿Eliminar carta?</h4>
-            <div className="flex gap-3">
-              <button onClick={() => setDeleteConfirm({show:false, id:null})} className="flex-1 bg-white/5 hover:bg-white/10 py-4 rounded-2xl font-black text-[10px] uppercase transition-colors">No, volver</button>
-              <button onClick={executeDelete} className="flex-1 bg-red-600 hover:bg-red-500 py-4 rounded-2xl font-black text-[10px] uppercase shadow-lg shadow-red-600/20 transition-colors">Sí, borrar</button>
+        <div className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-6 backdrop-blur-md">
+          <div className="bg-slate-900 border border-red-500/30 p-8 rounded-[2rem] text-center w-full max-w-xs animate-in zoom-in">
+            <Trash2 className="text-red-500 mx-auto mb-4" size={32} />
+            <h4 className="font-black uppercase text-sm mb-6">¿Eliminar carta?</h4>
+            <div className="flex flex-col gap-2">
+              <button onClick={executeDelete} className="bg-red-600 py-4 rounded-xl font-black text-[10px] uppercase">Sí, borrar</button>
+              <button onClick={() => setDeleteConfirm({show:false, id:null})} className="bg-white/5 py-3 rounded-xl font-black text-[10px] text-slate-500 uppercase">Cancelar</button>
             </div>
           </div>
         </div>
@@ -583,6 +553,7 @@ export default function Dashboard() {
         h1, h2, h3, h4, button, span.font-black { font-family: 'Archivo Black', sans-serif; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
       `}</style>
     </div>
   );
