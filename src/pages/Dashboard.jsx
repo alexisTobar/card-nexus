@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { db, auth } from '../lib/firebase';
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc, serverTimestamp, updateDoc, getDoc, setDoc } from 'firebase/firestore';
-import { Search, Plus, Trash2, Loader2, Sparkles, X, Copy, Check, ExternalLink, AlertCircle, MessageCircle, Layers, Edit3, BookOpen, AlertTriangle, Minus, ShieldAlert } from 'lucide-react';
+import { Search, Plus, Trash2, Loader2, Sparkles, X, Copy, Check, ExternalLink, AlertCircle, MessageCircle, Layers, Edit3, BookOpen, AlertTriangle, Minus, ShieldAlert, Globe, Activity } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -22,6 +22,7 @@ export default function Dashboard() {
   const [isSearching, setIsSearching] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isCreatingAlbum, setIsCreatingAlbum] = useState(false);
+  const [isEditingAlbum, setIsEditingAlbum] = useState(false);
   const [newAlbumName, setNewAlbumName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [isSavingPhone, setIsSavingPhone] = useState(false);
@@ -34,7 +35,6 @@ export default function Dashboard() {
   });
 
   // DETERMINAR USUARIO OBJETIVO
-  // Si hay un UID en la URL, usamos ese. Si no, usamos el del usuario logueado.
   const [currentUser, setCurrentUser] = useState(null);
   const targetUid = urlUid || auth.currentUser?.uid;
   const isAdminView = urlUid && auth.currentUser?.uid !== urlUid;
@@ -45,14 +45,13 @@ export default function Dashboard() {
       if (user) {
         setCurrentUser(user);
       } else if (!urlUid) {
-        // Si no está logueado y no está viendo un perfil ajeno, va al login
         navigate('/');
       }
     });
     return () => unsubscribe();
   }, [navigate, urlUid]);
 
-  // 2. CARGAR COLECCIÓN (Memorizado para evitar re-renders infinitos)
+  // 2. CARGAR COLECCIÓN
   const loadMyCollection = useCallback(async (uid, albumId) => {
     if (!uid || !albumId) return;
     setLoading(true);
@@ -76,14 +75,11 @@ export default function Dashboard() {
   useEffect(() => {
     const initLoad = async () => {
       if (!targetUid) return;
-
       try {
         setLoading(true);
-        // Cargar Perfil (WhatsApp)
         const userDoc = await getDoc(doc(db, "users", targetUid));
         if (userDoc.exists()) setWhatsapp(userDoc.data().whatsapp || "");
 
-        // Cargar Álbumes
         const q = query(collection(db, "albums"), where("uid", "==", targetUid));
         const snap = await getDocs(q);
         const albumList = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -96,11 +92,9 @@ export default function Dashboard() {
           setLoading(false);
         }
       } catch (err) {
-        console.error("Error en carga inicial:", err);
         setLoading(false);
       }
     };
-
     initLoad();
   }, [targetUid, loadMyCollection]);
 
@@ -111,24 +105,33 @@ export default function Dashboard() {
     }
   }, [activeAlbum, targetUid]);
 
-  // ACCIONES: CREAR ÁLBUM
-  const createAlbum = async () => {
+  // ACCIONES: CREAR / EDITAR ÁLBUM
+  const saveAlbum = async () => {
     if (isAdminView || !newAlbumName.trim()) return;
     try {
       const nameUpper = newAlbumName.toUpperCase();
-      const docRef = await addDoc(collection(db, "albums"), {
-        uid: auth.currentUser.uid,
-        name: nameUpper,
-        createdAt: serverTimestamp()
-      });
-      const newAlbum = { id: docRef.id, name: nameUpper };
-      setAlbums(prev => [...prev, newAlbum]);
-      setActiveAlbum(newAlbum);
+      
+      if (isEditingAlbum && activeAlbum) {
+        await updateDoc(doc(db, "albums", activeAlbum.id), { name: nameUpper });
+        setAlbums(prev => prev.map(a => a.id === activeAlbum.id ? { ...a, name: nameUpper } : a));
+        setActiveAlbum(prev => ({ ...prev, name: nameUpper }));
+        showToast("Álbum actualizado");
+      } else {
+        const docRef = await addDoc(collection(db, "albums"), {
+          uid: auth.currentUser.uid,
+          name: nameUpper,
+          createdAt: serverTimestamp()
+        });
+        const newAlbum = { id: docRef.id, name: nameUpper };
+        setAlbums(prev => [...prev, newAlbum]);
+        setActiveAlbum(newAlbum);
+        setMyCards([]);
+        showToast("¡Álbum creado!");
+      }
       setNewAlbumName("");
       setIsCreatingAlbum(false);
-      setMyCards([]);
-      showToast("¡Álbum creado!");
-    } catch (err) { showToast("Error al crear álbum", "error"); }
+      setIsEditingAlbum(false);
+    } catch (err) { showToast("Error al procesar álbum", "error"); }
   };
 
   // ACCIONES: GUARDAR WHATSAPP
@@ -136,7 +139,6 @@ export default function Dashboard() {
     if (isAdminView) return;
     const cleanPhone = whatsapp.toString().replace(/\D/g, '');
     if (cleanPhone.length < 8) return showToast("Número inválido", "error");
-
     setIsSavingPhone(true);
     try {
       await setDoc(doc(db, "users", auth.currentUser.uid), {
@@ -151,16 +153,42 @@ export default function Dashboard() {
     finally { setIsSavingPhone(false); }
   };
 
-  // BUSQUEDA TCGDEX
+  // BUSQUEDA TCGDEX MULTI-IDIOMA Y TODAS LAS EDICIONES
   const searchOfficial = async () => {
     if (isAdminView || !searchQuery.trim()) return;
     setIsSearching(true);
     try {
-      const res = await fetch(`https://api.tcgdex.net/v2/es/cards?name=${encodeURIComponent(searchQuery)}`);
-      const data = await res.json();
-      const combined = Array.isArray(data) ? data : [];
-      setResults(combined.filter(c => c.image).slice(0, 12));
-    } catch (err) { console.error(err); }
+      // Realizamos peticiones en paralelo para Español e Inglés
+      const [resEs, resEn] = await Promise.all([
+        fetch(`https://api.tcgdex.net/v2/es/cards?name=${encodeURIComponent(searchQuery)}`),
+        fetch(`https://api.tcgdex.net/v2/en/cards?name=${encodeURIComponent(searchQuery)}`)
+      ]);
+
+      const dataEs = await resEs.json();
+      const dataEn = await resEn.json();
+
+      // Combinamos resultados asegurando que sean arrays
+      const combined = [
+        ...(Array.isArray(dataEs) ? dataEs : []),
+        ...(Array.isArray(dataEn) ? dataEn : [])
+      ];
+
+      // Eliminamos duplicados por ID y filtramos los que tienen imagen
+      const uniqueCards = [];
+      const map = new Map();
+      for (const item of combined) {
+        if (!map.has(item.id) && item.image) {
+          map.set(item.id, true);
+          uniqueCards.push(item);
+        }
+      }
+
+      // Ordenamos para que las ediciones más nuevas o raras salgan arriba (opcional)
+      setResults(uniqueCards);
+    } catch (err) { 
+        console.error("Error en búsqueda:", err);
+        showToast("Error al buscar cartas", "error");
+    }
     setIsSearching(false);
   };
 
@@ -180,7 +208,7 @@ export default function Dashboard() {
         status: cardDetails.status,
         language: cardDetails.language,
         quantity: Number(cardDetails.quantity) || 1,
-        delivery: cardDetails.delivery,
+        delivery: cardDetails.delivery || "",
         updatedAt: serverTimestamp()
       };
 
@@ -279,9 +307,14 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xs font-black uppercase text-slate-400 flex items-center gap-2"><Layers size={16} className="text-yellow-500" /> Álbumes Disponibles</h3>
             {!isAdminView && (
-              <button onClick={() => setIsCreatingAlbum(true)} className="bg-yellow-500 text-black px-4 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2">
-                <Plus size={14} /> Nuevo
-              </button>
+              <div className="flex gap-2">
+                <button onClick={() => { setIsEditingAlbum(true); setIsCreatingAlbum(false); setNewAlbumName(activeAlbum?.name || ""); }} className="bg-white/5 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 border border-white/10">
+                  <Edit3 size={14} /> Editar Nombre
+                </button>
+                <button onClick={() => { setIsCreatingAlbum(true); setIsEditingAlbum(false); setNewAlbumName(""); }} className="bg-yellow-500 text-black px-4 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2">
+                  <Plus size={14} /> Nuevo
+                </button>
+              </div>
             )}
           </div>
           <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
@@ -295,16 +328,15 @@ export default function Dashboard() {
               </button>
             ))}
           </div>
-          {isCreatingAlbum && (
+          {(isCreatingAlbum || isEditingAlbum) && (
             <div className="mt-4 flex gap-2 animate-in slide-in-from-top-2">
-              <input autoFocus value={newAlbumName} onChange={(e) => setNewAlbumName(e.target.value)} placeholder="NOMBRE..." className="bg-black/60 border border-yellow-500 rounded-xl px-4 py-2 text-xs font-bold flex-1 max-w-xs" />
-              <button onClick={createAlbum} className="bg-green-600 p-3 rounded-xl"><Check size={18} /></button>
-              <button onClick={() => setIsCreatingAlbum(false)} className="bg-white/10 p-3 rounded-xl"><X size={18} /></button>
+              <input autoFocus value={newAlbumName} onChange={(e) => setNewAlbumName(e.target.value)} placeholder={isEditingAlbum ? "NUEVO NOMBRE..." : "NOMBRE DEL ÁLBUM..."} className="bg-black/60 border border-yellow-500 rounded-xl px-4 py-2 text-xs font-bold flex-1 max-w-xs" />
+              <button onClick={saveAlbum} className="bg-green-600 p-3 rounded-xl"><Check size={18} /></button>
+              <button onClick={() => { setIsCreatingAlbum(false); setIsEditingAlbum(false); }} className="bg-white/10 p-3 rounded-xl"><X size={18} /></button>
             </div>
           )}
         </section>
 
-        {/* SHARE PANEL */}
         {/* SHARE PANEL */}
         {activeAlbum && (
           <section className="bg-slate-900/80 border border-white/10 rounded-[2.5rem] p-8 flex flex-col md:flex-row items-center gap-8">
@@ -314,17 +346,13 @@ export default function Dashboard() {
             <div className="flex-1 text-center md:text-left">
               <span className="text-yellow-500 text-[10px] font-black uppercase">Compartir mi colección</span>
               <h3 className="text-2xl font-black uppercase mb-4">{activeAlbum?.name}</h3>
-
               <div className="flex flex-wrap gap-3 justify-center md:justify-start">
-                {/* BOTÓN COPIAR LINK ORIGINAL */}
                 <button
                   onClick={() => { navigator.clipboard.writeText(profileUrl); setCopied(true); showToast("Link copiado"); }}
                   className="bg-white text-black px-6 py-3 rounded-xl font-black text-[10px] uppercase flex items-center gap-2"
                 >
                   {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? 'Copiado' : 'Copiar Link'}
                 </button>
-
-                {/* NUEVO BOTÓN: COMPARTIR POR WHATSAPP */}
                 <button
                   onClick={() => {
                     const message = encodeURIComponent(`¡Hola! Mira mi álbum de cartas Pokémon: ${profileUrl}`);
@@ -345,15 +373,15 @@ export default function Dashboard() {
             <div className="relative max-w-2xl mx-auto">
               <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-slate-900 border-2 border-white/10 rounded-[2rem] py-5 px-14 font-bold outline-none focus:border-yellow-500"
-                placeholder="Buscar Pokémon para añadir..." />
+                placeholder="Buscar Pokémon (Español o Inglés)..." />
               <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-600" size={24} />
               {isSearching && <Loader2 className="absolute right-5 top-1/2 -translate-y-1/2 animate-spin text-yellow-500" size={20} />}
             </div>
 
             {results.length > 0 && (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 p-4 bg-white/5 rounded-[2rem]">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 p-4 bg-white/5 rounded-[2rem] max-h-[500px] overflow-y-auto scrollbar-hide border border-white/5">
                 {results.map(card => (
-                  <div key={card.id} onClick={() => { setIsEditing(false); setSelectedCard(card); }} className="cursor-pointer hover:scale-105 transition-all relative group">
+                  <div key={card.id} onClick={() => { setIsEditing(false); setSelectedCard(card); setCardDetails({ price: "", status: "Near Mint", language: "Inglés", quantity: 1, delivery: "" }); }} className="cursor-pointer hover:scale-105 transition-all relative group overflow-hidden rounded-xl">
                     <img src={`${card.image}/low.webp`} className="rounded-xl border-2 border-transparent group-hover:border-yellow-500" alt={card.name} />
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/40 rounded-xl">
                       <Plus className="text-white" size={32} />
@@ -375,21 +403,34 @@ export default function Dashboard() {
           {myCards.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
               {myCards.map(card => (
-                <div key={card.id} className="bg-slate-900/60 border border-white/10 rounded-[1.5rem] overflow-hidden group hover:border-yellow-500 transition-all">
-                  <div className="relative aspect-[2/3] p-2">
-                    <img src={card.image} className="w-full h-full object-contain" alt={card.name} />
-                    <div className="absolute bottom-4 right-4 bg-yellow-500 text-black font-black px-2 py-1 rounded-lg text-[10px]">x{card.quantity}</div>
+                <div key={card.id} className="bg-slate-900/60 border border-white/10 rounded-[1.5rem] overflow-hidden group hover:border-yellow-500 transition-all flex flex-col">
+                  <div className="relative aspect-[2/3] p-2 overflow-hidden card-holo-wrapper">
+                    <img src={card.image} className="w-full h-full object-contain relative z-10" alt={card.name} />
+                    <div className="holo-glare"></div>
+                    <div className="absolute bottom-4 right-4 z-20 bg-yellow-500 text-black font-black px-2 py-1 rounded-lg text-[10px]">x{card.quantity}</div>
 
                     {!isAdminView && (
-                      <div className="absolute top-2 right-2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                        <button onClick={() => { setIsEditing(true); setSelectedCard(card); setCardDetails(card); }} className="bg-yellow-500 p-2 rounded-lg text-black"><Edit3 size={14} /></button>
-                        <button onClick={() => setDeleteConfirm({ show: true, id: card.id })} className="bg-red-600 p-2 rounded-lg text-white"><Trash2 size={14} /></button>
+                      <div className="absolute top-2 right-2 z-20 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                        <button onClick={() => { setIsEditing(true); setSelectedCard(card); setCardDetails(card); }} className="bg-yellow-500 p-2 rounded-lg text-black hover:scale-110 transition-transform"><Edit3 size={14} /></button>
+                        <button onClick={() => setDeleteConfirm({ show: true, id: card.id })} className="bg-red-600 p-2 rounded-lg text-white hover:scale-110 transition-transform"><Trash2 size={14} /></button>
                       </div>
                     )}
                   </div>
-                  <div className="p-4 bg-black/40">
-                    <div className="text-lg font-black text-yellow-400">${Number(card.price).toLocaleString('es-CL')}</div>
-                    <div className="text-[8px] font-bold text-slate-500 uppercase mt-1 truncate">{card.name}</div>
+                  <div className="p-4 bg-black/60 mt-auto border-t border-white/5">
+                    <div className="text-lg font-black text-yellow-400 mb-2">${Number(card.price).toLocaleString('es-CL')}</div>
+                    <div className="space-y-1.5 mb-3">
+                        <div className="flex items-center gap-2 text-slate-300">
+                            <Activity size={10} className="text-yellow-500" />
+                            <span className="text-[9px] font-black uppercase tracking-tighter">{card.status}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-300">
+                            <Globe size={10} className="text-blue-400" />
+                            <span className="text-[9px] font-black uppercase tracking-tighter">{card.language}</span>
+                        </div>
+                    </div>
+                    <div className="text-[8px] font-bold text-slate-500 uppercase truncate border-t border-white/5 pt-2">
+                        {card.name}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -464,6 +505,43 @@ export default function Dashboard() {
         h1, h2, h3, h4, button, span, label, input, select { font-family: 'Archivo Black', sans-serif; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .card-holo-wrapper {
+          position: relative;
+        }
+
+        .holo-glare {
+          position: absolute;
+          inset: 0;
+          z-index: 15;
+          pointer-events: none;
+          background: linear-gradient(
+            110deg,
+            transparent 20%,
+            rgba(255, 255, 255, 0.05) 30%,
+            rgba(255, 255, 255, 0.2) 50%,
+            rgba(255, 255, 255, 0.05) 70%,
+            transparent 80%
+          );
+          background-size: 200% 100%;
+          background-position: 150% 0;
+          transition: background-position 0.6s ease;
+          opacity: 0;
+        }
+
+        .group:hover .holo-glare {
+          background-position: -50% 0;
+          opacity: 1;
+        }
+
+        .group:hover .card-holo-wrapper::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          z-index: 5;
+          box-shadow: inset 0 0 20px rgba(250, 204, 21, 0.2);
+          pointer-events: none;
+        }
       `}</style>
     </div>
   );

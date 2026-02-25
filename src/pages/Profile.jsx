@@ -4,7 +4,7 @@ import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firesto
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Loader2, MessageCircle, Trophy, ShoppingCart, MapPin, 
-  Layers, ArrowLeft, CheckCircle2, ListPlus, Trash2, Send, Sparkles
+  Layers, ArrowLeft, CheckCircle2, ListPlus, Trash2, Send, Sparkles, Globe, Activity, ShieldCheck
 } from 'lucide-react';
 
 export default function Profile() {
@@ -89,8 +89,8 @@ export default function Profile() {
     const cleanNumber = userWhatsapp.replace(/\D/g, '');
     const finalPhone = cleanNumber.startsWith('56') ? cleanNumber : `56${cleanNumber}`;
     
-    const listadoCartas = interestList.map(c => `- ${c.name} (x${c.quantity || 1})`).join('\n');
-    const total = interestList.reduce((acc, curr) => acc + (Number(curr.price) * (Number(curr.quantity) || 1)), 0);
+    const listadoCartas = interestList.map(c => `- ${c.name} (${c.language}) x${c.quantity || 1}`).join('\n');
+    const total = interestList.reduce((acc, curr) => acc + (Number(curr.price) * 1), 0); // Precio por unidad en el mensaje
 
     const mensaje = `¡Hola ${userName}! Vi tu álbum "${albumName || 'Principal'}" en PokeAlbum ⚡\n\nMe interesan estas cartas:\n${listadoCartas}\n\n*Total estimado: $${total.toLocaleString('es-CL')} CLP*\n\n¿Están disponibles?`;
       
@@ -113,6 +113,18 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-[#020617] text-white font-sans pb-32 relative overflow-x-hidden">
+      
+      {/* WATERMARK JUEGOS VIKINGOS */}
+      <div className="fixed bottom-6 right-6 z-[150] pointer-events-none opacity-40 hover:opacity-100 transition-opacity">
+        <div className="flex flex-col items-end">
+            <span className="text-[8px] font-black uppercase tracking-[0.3em] text-slate-500 mb-1">Powered by</span>
+            <div className="flex items-center gap-2 bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl border border-white/5">
+                <ShieldCheck size={16} className="text-yellow-500" />
+                <span className="text-xs font-black italic tracking-tighter">JUEGOS <span className="text-yellow-500">VIKINGOS</span></span>
+            </div>
+        </div>
+      </div>
+
       {/* HEADER ACTIONS */}
       <div className="fixed top-6 left-6 right-6 z-[100] flex justify-between items-center">
         <button onClick={() => navigate('/')} className="bg-black/60 backdrop-blur-xl border border-white/10 p-4 rounded-2xl hover:bg-yellow-500 hover:text-black transition-all shadow-2xl">
@@ -127,10 +139,10 @@ export default function Profile() {
             <span className="text-[10px] font-black uppercase text-blue-100 flex items-center gap-1">
                 <Sparkles size={10}/> Carrito Pokémon
             </span>
-            <span className="text-xl font-black italic text-white leading-none">{interestList.length} Cartas Lista</span>
+            <span className="text-xl font-black italic text-white leading-none">{interestList.length} Seleccionadas</span>
           </div>
           <button onClick={handleSendBatchWhatsApp} className="bg-yellow-400 text-black px-8 py-4 rounded-2xl font-black flex items-center gap-3 shadow-xl hover:scale-105 active:scale-95 transition-all">
-            <MessageCircle size={22} /> ENVIAR WHATSAPP
+            <MessageCircle size={22} /> ENVIAR AL VENDEDOR
           </button>
         </div>
       )}
@@ -159,18 +171,18 @@ export default function Profile() {
 
       <main className="max-w-[1400px] mx-auto px-6 relative z-10">
         <div className="flex items-center justify-between mb-12 border-b border-white/5 pb-6">
-           <div>
+            <div>
             <h2 className="text-2xl font-black uppercase italic tracking-widest text-white flex items-center gap-3">
                 <Layers className="text-yellow-400" /> Cartas en Stock
             </h2>
-            <p className="text-slate-500 text-[10px] font-bold uppercase mt-1">Haz clic en las cartas para seleccionarlas</p>
-           </div>
-           
-           {interestList.length > 0 && (
-             <button onClick={() => setInterestList([])} className="bg-red-500/10 hover:bg-red-500/20 text-red-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 transition-colors border border-red-500/20">
-               <Trash2 size={14}/> Borrar Selección
-             </button>
-           )}
+            <p className="text-slate-500 text-[10px] font-bold uppercase mt-1">Selecciona las cartas que quieres comprar</p>
+            </div>
+            
+            {interestList.length > 0 && (
+              <button onClick={() => setInterestList([])} className="bg-red-500/10 hover:bg-red-500/20 text-red-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 transition-colors border border-red-500/20">
+                <Trash2 size={14}/> Limpiar Lista
+              </button>
+            )}
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8">
@@ -185,18 +197,16 @@ export default function Profile() {
               >
                 {/* CARD ART */}
                 <div className="relative aspect-[2/3] p-2">
-                  {/* EFECTO HOLO DINÁMICO */}
                   <div className={`absolute inset-0 z-20 pointer-events-none transition-opacity duration-500
                     ${isSelected ? 'opacity-100 holo-premium' : 'opacity-20 group-hover:opacity-60 holo-subtle'}`} 
                   />
                   
                   <img src={card.image} alt={card.name} className="w-full h-full object-contain relative z-10 drop-shadow-2xl" />
                   
-                  {/* BADGE DE CANTIDAD MEJORADO (Estilo Energy/Sticker) */}
-                  <div className="absolute top-3 left-3 z-40">
-                      <div className="bg-black/80 backdrop-blur-md border border-white/20 px-3 py-1 rounded-full flex items-center gap-1 shadow-lg ring-1 ring-white/10">
-                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Stock</span>
-                        <span className="text-xs font-black text-white">{card.quantity || 1}</span>
+                  {/* BADGE DE CANTIDAD */}
+                  <div className="absolute bottom-3 right-3 z-40">
+                      <div className="bg-yellow-500 text-black px-2 py-1 rounded-lg flex items-center gap-1 shadow-lg ring-1 ring-black/10">
+                        <span className="text-[10px] font-black">x{card.quantity || 1}</span>
                       </div>
                   </div>
 
@@ -210,26 +220,32 @@ export default function Profile() {
                   </div>
                 </div>
 
-                {/* CARD INFO */}
-                <div className="px-4 py-4 bg-gradient-to-t from-black/60 to-transparent relative z-30">
-                  <h3 className="text-[9px] font-black uppercase truncate text-slate-400 mb-1 tracking-wider">{card.name}</h3>
-                  <div className="flex items-end justify-between">
-                    <div className="flex flex-col leading-none">
-                        <span className="text-[8px] font-bold text-yellow-500/80 uppercase">Precio</span>
-                        <span className="text-xl font-black italic text-yellow-400 tracking-tighter">
-                            ${Number(card.price).toLocaleString('es-CL')}
-                        </span>
+                {/* CARD INFO ACTUALIZADA */}
+                <div className="p-4 bg-black/60 mt-auto border-t border-white/5 relative z-30">
+                    <div className="text-lg font-black text-yellow-400 mb-2 leading-none">
+                        ${Number(card.price).toLocaleString('es-CL')}
                     </div>
-                    <div className="text-[10px] bg-white/5 border border-white/10 px-2 py-1 rounded-lg font-black text-white/80 italic">
-                        {card.status || 'NM'}
+                    
+                    <div className="space-y-1.5 mb-3">
+                        <div className="flex items-center gap-2 text-slate-300">
+                            <Activity size={10} className="text-yellow-500" />
+                            <span className="text-[9px] font-black uppercase tracking-tighter">{card.status || 'Near Mint'}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-300">
+                            <Globe size={10} className="text-blue-400" />
+                            <span className="text-[9px] font-black uppercase tracking-tighter">{card.language || 'Inglés'}</span>
+                        </div>
                     </div>
-                  </div>
-                  
-                  {card.delivery && (
-                    <div className="flex items-center gap-1.5 text-[8px] text-blue-300 font-bold uppercase mt-3 bg-blue-500/10 p-2 rounded-xl border border-blue-500/20">
-                      <MapPin size={10} className="text-blue-400" /> {card.delivery}
+
+                    <div className="text-[9px] font-bold text-slate-500 uppercase truncate border-t border-white/5 pt-2 tracking-wider">
+                        {card.name}
                     </div>
-                  )}
+
+                    {card.delivery && (
+                        <div className="flex items-center gap-1.5 text-[8px] text-blue-300 font-bold uppercase mt-2">
+                            <MapPin size={10} /> {card.delivery}
+                        </div>
+                    )}
                 </div>
 
                 {/* GLOW DE SELECCIÓN TRASERO */}
@@ -246,7 +262,6 @@ export default function Profile() {
         @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap');
         h1, h2, h3, button, span { font-family: 'Archivo Black', sans-serif; }
         
-        /* Efecto Holo Premium (Arcoíris) */
         .holo-premium {
           background: linear-gradient(
             125deg,
@@ -279,7 +294,6 @@ export default function Profile() {
           100% { background-position: -200% 0; }
         }
 
-        /* Scrollbar Personalizada */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #020617; }
         ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
